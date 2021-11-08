@@ -1,0 +1,33 @@
+namespace com.republicate.kddl
+
+grammar KDDL {
+    skip WHITE_SPACE = "(\s|\n)+" ;
+    skip MULTI_LINE_COMMENT = "/\*[^*]*\*+(?:[^*/][^*]*\*+)*/" ;
+    skip SINGLE_LINE_COMMENT = "//.*?$" ;
+
+    database = 'database' NAME ( '{' ( option | schema )* '}' )? ;
+    option = 'option' NAME '=' expression ;
+    schema = 'schema' NAME ( '{' ( table | link )* '}' )? ;
+    custom_type = 'type' NAME type ;
+    table = 'table' NAME ( ':' parent direction? )? ( '{' (field ','? )* '}' )? ;
+    parent = ( NAME '.' )? NAME ;
+    field = ( primary_key | unique )? NAME ( type optional? default? | arrow ( NAME '.' )? NAME cascade? direction? )? ;
+    type = 'boolean' | 'integer' | 'serial' | 'long' | 'float' | 'double' | 'money' | 'numeric' '(' INTEGER ( ',' INTEGER )? ')' | 'time' | 'date' | 'datetz' | 'datetime' | 'datetimetz' | 'interval' | 'char' ( '(' INTEGER ')' )? | 'varchar' '(' INTEGER ')' | 'text' | 'enum(' STRING ( ','? STRING )* ')' | 'json' | 'jsonb';
+    primary_key = '*' ;
+    unique = '!' ;
+    optional = '?' ;
+    default = '=' expression ;
+    expression = NULL | BOOLEAN | NUMBER | STRING  | FUNCTION;
+    link = NAME '*'? arrow '*'? (NAME '.')? NAME 'cascade'? direction? ;
+    arrow = ( '-' | '.' )+ '>'? ;
+    cascade = 'cascade' ;
+    direction = '(' ( 'up' | 'down' | 'left' | 'right' ) ')' ;
+
+    NAME = "[a-zA-Z_][a-zA-Z0-9_]*" ;
+    BOOLEAN = 'true' | 'false' ;
+    INTEGER = "[0-9]+" ;
+    NUMBER = "[0-9]+([.][0-9]+)?" ;
+    STRING = "'(?:\\?.)*?'" ;
+    NULL = "null" ;
+    FUNCTION = NAME '(' "\(\)|[^)]"* ')';
+}

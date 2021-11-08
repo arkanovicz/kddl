@@ -1,0 +1,59 @@
+// Definition for database geo
+
+// Supported data types:
+//   boolean, integer, serial, long, float, double, numeric(*n*,p), money,
+//   time, date, datetz, datetime, datetimetz, char, char(*n), varchar(*n*), text,
+//   enum( 'value1' [,] 'value2' ...)
+
+// a database contains options and schemas
+database geo {
+
+  // options
+  option id_suffix = '_key' // default is '_id'
+
+  // a schema contains tables and links
+  schema kddl {
+
+    // a table contains fields, either given a type or a destination table
+    table zone {
+      *code varchar(10)      // '*' stands for 'part of pk', otherwise pk is generated as needed
+      !name varchar(50)       // unique, not null by default
+      description text?      // '?' stands for nullable field
+      active boolean = false // default value
+    }
+
+    table department : zone // inherit a table from another (for engines which support table inheritance like PostgresQL)
+
+    table city : zone { hasTrain boolean? }  // declarations can be inlined
+
+    table link {
+      distance integer
+      *src_id -> zone cascade    // mandatory foreign key field, cascade on delete
+      *dst_id ---> zone cascade  // arrows can be as long as you want
+      *hub_id ..> zone (down)   // nullable foreign key field
+    }
+
+    city *--> department (up) // plantuml arrow direction can be specified
+  }
+
+  schema client {
+
+    table contact {
+      // gender, lastname, firstname // field types are optional for plantuml (use a coma to disambiguate)
+      gender char?                   // field types are mandatory for postgresql
+      firstname varchar(200)
+      lastname varchar(200)
+    }
+
+    table location {
+      name varchar(50) = 'untitled'    // string literals use single quotes
+      nature enum('depart', 'arrival') // enum types
+      address text?
+    }
+
+    location *--> contact
+    location *..> kddl.zone // foreign key referencing a table in another schema
+
+  }
+
+}
