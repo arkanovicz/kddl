@@ -61,6 +61,7 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.3")
             }
+            kotlin.srcDirs += File("build/generated-src/commonMain/kotlin")
         }
         val commonTest by getting {
             dependencies {
@@ -83,7 +84,7 @@ tasks.register<com.strumenta.antlrkotlin.gradleplugin.AntlrKotlinTask>("generate
             project.dependencies.create("com.strumenta.antlr-kotlin:antlr-kotlin-target:6304d5c1c4")
     )
     // maxHeapSize = "64m"
-    packageName = "com.republicate.kddl"
+    packageName = "com.republicate.kddl.parser"
     arguments = listOf("-no-visitor", "-no-listener")
     source = project.objects
             .sourceDirectorySet("antlr", "antlr")
