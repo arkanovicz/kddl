@@ -1,9 +1,24 @@
 package com.republicate.kddl
 
-import java.io.File
+import org.antlr.v4.kotlinruntime.CharStream
+import org.antlr.v4.kotlinruntime.CharStreams
+import java.nio.charset.StandardCharsets
 
-actual fun getResource(path: String) = {}.javaClass.classLoader.getResource(path)?.readText() ?: throw RuntimeException("resource $path not found")
-actual fun getFile(path: String) = File(path).readText(Charsets.UTF_8)
+actual object Utils {
+
+    actual fun Utils.getResource(path: String): CharStream = CharStreams.fromStream(
+        {}.javaClass.classLoader.getResourceAsStream(path) ?: throw RuntimeException("resource $path not found"),
+        StandardCharsets.UTF_8
+    )
+
+    actual fun Utils.getFile(path: String): CharStream = CharStreams.fromFileName(
+        path,
+        StandardCharsets.UTF_8)
+
+}
+
+
+
 
 
 

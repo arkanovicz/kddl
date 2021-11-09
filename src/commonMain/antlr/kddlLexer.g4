@@ -1,5 +1,6 @@
 lexer grammar kddlLexer;
 
+// keywords
 DATABASE: 'database' ;
 SCHEMA: 'schema' ;
 TABLE: 'table' ;
@@ -7,30 +8,9 @@ UP: 'up' ;
 DOWN: 'down' ;
 LEFT: 'left' ;
 RIGHT: 'right' ;
-STRING: '\'' .*? '\'' ;
 NULL: 'null' ;
-LABEL: [a-zA-Z_][a-zA-Z0-9_]* ;
-INTEGER: [0-9]+ ;
-ARROW: '-'+ '>' ;
-WS: [ \t\n\r]+ -> skip ;
-LINE_COMMENT : '//' .*? '\n' -> skip ;
-BLOCK_COMMENT:'/*' .*? '*/' -> skip ;
-LC: '{' ;
-RC: '}' ;
-FS: ':' ;
-LP: '(' ;
-RP: ')' ;
-DOT: '.' ;
-LA: '<' ;
-RA: '>' ;
-ST: '*' ;
-QM: '?' ;
-LNK: '-' ;
-EM: '!' ;
-CM: ',' ;
-EQ: '=' ;
 TRUE: 'true' ;
-FALSE: 'FALSE' ;
+FALSE: 'false' ;
 BOOLEAN: 'boolean' ;
 INT: 'int' ( 'eger' )? ;
 SERIAL: 'serial' ;
@@ -50,4 +30,32 @@ VARCHAR: 'varchar' ;
 TEXT: 'text' ;
 ENUM: 'enum' ;
 JSON: 'json' ;
-JSONB : 'jsonb' ;
+JSONB: 'jsonb' ;
+
+// values
+LABEL: [a-zA-Z_][a-zA-Z0-9_]* ;
+INTEGER: [0-9]+ ;
+STRING: '\'' .*? '\'' ;
+
+// symbols
+ARROW: '-'+ '>' ;
+LC: '{' ;
+RC: '}' ;
+FS: ':' ;
+LP: '(' ;
+RP: ')' ;
+DOT: '.' ;
+LA: '<' ;
+RA: '>' ;
+ST: '*' ;
+QM: '?' ;
+LNK: '-' ;
+EM: '!' ;
+CM: ',' ;
+EQ: '=' ;
+
+
+// whitespaces and comments
+WS: [ \t\n\r]+ -> skip ;
+LINE_COMMENT : '//' .*? '\n' -> skip ;
+BLOCK_COMMENT:'/*' .*? '*/' -> skip ;

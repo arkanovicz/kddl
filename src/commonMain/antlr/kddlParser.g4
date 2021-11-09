@@ -1,5 +1,7 @@
 parser grammar kddlParser;
 
+options { tokenVocab = kddlLexer; }
+
 database: DATABASE name=LABEL LC ( schema | link ) * RC EOF ;
 schema: SCHEMA name=LABEL LC ( table | link )* RC ;
 table: TABLE name=LABEL ( FS parent ( LP direction RP )? )? LC field* RC ;
