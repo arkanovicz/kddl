@@ -31,6 +31,7 @@ TEXT: 'text' ;
 ENUM: 'enum' ;
 JSON: 'json' ;
 JSONB: 'jsonb' ;
+CASCADE: 'cascade' ;
 
 // values
 LABEL: [a-zA-Z_][a-zA-Z0-9_]* ;

@@ -1,15 +1,30 @@
 package com.republicate.kddl
 
-open class DBObject(val name : String) {
+abstract  class DBObject(val name : String) {
+    abstract fun display(indent: String = "")
 }
 
 open class Database(name : String) : DBObject(name) {
     val options = mutableMapOf<String, Option>()
     val schemas = mutableMapOf<String, Schema>()
+    override fun display(indent: String) {
+        println("${indent}database $name {")
+        for (schema in schemas.values) {
+            schema.display("$indent  ")
+        }
+        println("${indent}}")
+    }
 }
 
 class Schema(val db : Database, name : String) : DBObject(name) {
     val tables = mutableMapOf<String, Table>()
+    override fun display(indent: String) {
+        println("${indent}schema $name {")
+        for (table in tables.values) {
+            table.display("$indent  ")
+        }
+        println("${indent}}")
+    }
 }
 
 open class Table(val schema : Schema, name : String, val parent : Table? = null, val parentDirection : String = "") : DBObject(name) {
@@ -19,7 +34,7 @@ open class Table(val schema : Schema, name : String, val parent : Table? = null,
     val children = mutableSetOf<Table>()
 
     init {
-        parent?.children?.add(this) // yeah, I know, leaking out 'this' from ctor...
+        parent?.children?.add(this) // yeah, I know, leaking out 'this' from ctor... TODO
     }
 
     fun getPrimaryKey() : Set<Field> = fields.values.filter { it.primaryKey }.toSet()
@@ -55,6 +70,22 @@ open class Table(val schema : Schema, name : String, val parent : Table? = null,
             }
         }
     }
+
+    override fun display(indent: String) {
+        print("${indent}table $name")
+        if (parent != null) {
+            print(" : ")
+            if (parent.schema.name != schema.name) {
+                print("${parent.schema.name}.")
+            }
+            print(parent.name)
+        }
+        println(" {")
+        for (field in fields.values) {
+            field.display("$indent  ")
+        }
+        println("${indent}}")
+    }
 }
 
 class JoinTable(schema: Schema, val sourceTable: Table, val destTable : Table) : Table(schema, "${sourceTable.name}_${destTable.name}") {
@@ -87,7 +118,29 @@ class Field(
         if (name != pk.name) return false
         if (type !in listOf("integer", pk.type)) return false
         return true
+    }
 
+    override fun display(indent: String) {
+        print(indent)
+        if (primaryKey) print('*')
+        else if (unique) print('!')
+        print(name)
+        val fk = getForeignKeys().firstOrNull()
+        if (fk != null) {
+            print(" -> ")
+            if (fk.towards.schema.name != table.schema.name) {
+                print("${fk.towards.schema.name}.")
+            }
+            print(fk.towards.name)
+            if (!nonNull) print('?')
+        } else {
+            print(" $type")
+            if (!nonNull) print('?')
+            if (default != null) {
+                print(" = $default")
+            }
+        }
+        println()
     }
 }
 

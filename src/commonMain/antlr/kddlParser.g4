@@ -4,11 +4,10 @@ options { tokenVocab = kddlLexer; }
 
 database: DATABASE name=LABEL LC ( schema | link ) * RC EOF ;
 schema: SCHEMA name=LABEL LC ( table | link )* RC ;
-table: TABLE name=LABEL ( FS parent ( LP direction RP )? )? LC field* RC ;
-parent: qualified ;
+table: TABLE name=LABEL ( FS par=qualified ( LP direction RP )? )? LC field* RC ;
 direction: ( UP | DOWN | LEFT | RIGHT ) ;
 link: left=qualified ( left_mult=ST | left_single=LA )? LNK+ (  right_mult=ST | right_single=RA )? right=qualified ;
-field: ( pk=ST | unique=EM )? name=LABEL (type ( optional=QM )? default? | ( optional=QM )? ARROW ) ( ref_schema=LABEL DOT )? reference=LABEL ;
+field: ( pk=ST | unique=EM )? name=LABEL (type ( optional=QM )? default? | ( optional=QM )? ARROW reference=qualified CASCADE? direction? ) ;
 type: BOOLEAN
     | INT
     | SERIAL
@@ -32,7 +31,6 @@ type: BOOLEAN
 default: EQ expression ;
 expression: NULL | boolean | number | STRING | function ;
 boolean: TRUE | FALSE ;
-number: INTEGER ( DOT INTEGER )? ;
-function: LABEL LP .*? RP;
+number: LNK? INTEGER ( DOT frac=INTEGER )? ;
+function: name=LABEL LP (arg=.)*? RP;
 qualified: ( ref_schema=LABEL DOT )? name=LABEL ;
-

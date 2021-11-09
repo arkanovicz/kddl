@@ -97,5 +97,5 @@ tasks.register<com.strumenta.antlrkotlin.gradleplugin.AntlrKotlinTask>("generate
 tasks.getByName("compileKotlinJvm").dependsOn("generateKotlinCommonGrammarSource")
 
 application {
-    mainClass.set("MainKt")
+    mainClass.set("com.republicate.kddl.MainKt")
 }
