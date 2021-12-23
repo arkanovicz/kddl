@@ -109,6 +109,14 @@ ln -s ~/<path_to_kddl_repository>/kddl.sh ~/bin/kddl
 
 Please adapt the installation and run scripts.
 
+## Building
+
+```
+$ ./gradlew generateKotlinCommonGrammarSource
+$ ./gradlew build
+```
+
+
 ## TODO
 
 - finish handling of multivalued fks

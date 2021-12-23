@@ -1,7 +1,6 @@
 package com.republicate.kddl
 
 import com.republicate.kddl.Utils.getFile
-import com.republicate.kddl.kotlin.KotlinFormatter
 import com.republicate.kddl.parser.kddlLexer
 import com.republicate.kddl.parser.kddlParser
 import com.republicate.kddl.plantuml.PlantUMLFormatter
@@ -21,12 +20,18 @@ val argParser = ArgParser("kddl")
 
 enum class Format {
     PLANTUML,
-    POSTGRESQL,
-    KOTLIN
+    POSTGRESQL
 }
 
 interface Formatter {
-    fun format()
+    companion object {
+        val EOL: String = "\n"
+    }
+    fun format(asm: Database, indent: String = ""): String
+    fun format(asm: Schema, indent: String): String
+    fun format(asm: Table, indent: String): String
+    fun format(asm: Field, indent: String, ): String
+    fun format(asm: ForeignKey, indent: String): String
 }
 
 fun main(args: Array<String>) {
@@ -39,10 +44,10 @@ fun main(args: Array<String>) {
     val formatter = when (format) {
         Format.PLANTUML -> PlantUMLFormatter()
         Format.POSTGRESQL -> PostgreSQLFormatter()
-        Format.KOTLIN -> KotlinFormatter()
         else -> throw IllegalArgumentException("invalid format")
     }
-    formatter.format()
+    val ret = formatter.format(tree)
+    println(ret)
 }
 
 fun parse(ddl: CharStream): Database {
@@ -50,10 +55,7 @@ fun parse(ddl: CharStream): Database {
     val tokenStream = CommonTokenStream(lexer)
     val parser = kddlParser(tokenStream)
     val root = parser.database()
-    val database = buildAst(root)
-    println(root.format(parser))
-    database.display()
-    return Database("TODO")
+    return buildAst(root)
 }
 
 fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
@@ -87,7 +89,8 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
                             else -> throw SemanticException("invalid default value: ${astDefault.text}")
                         }
                     }
-                    Field(table, astField.name!!.text!!, astField.findType()!!.text, pk, nonNull, unique, default)
+                    val type = astField.findType() ?: throw SemanticException("type not found for field: ${astField.text}")
+                    Field(table, astField.name!!.text!!, type.text, pk, nonNull, unique, default)
                 } else {
                     // link field
                     val cascade = astField.CASCADE() != null

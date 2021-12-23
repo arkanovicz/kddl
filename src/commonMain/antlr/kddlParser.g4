@@ -23,7 +23,7 @@ type: BOOLEAN
     | DATETIMETZ
     | INTERVAL
     | CHAR ( LP width=INTEGER RP )?
-    | VARCHAR LP width=INTEGER RP
+    | VARCHAR ( LP width=INTEGER RP )?
     | TEXT
     | ENUM LP value=STRING ( CM? value=STRING )* RP
     | JSON

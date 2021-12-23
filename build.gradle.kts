@@ -1,10 +1,14 @@
 plugins {
     kotlin("multiplatform") version "1.5.31"
+    id("org.jetbrains.dokka") version "1.5.0"
     application
+    `maven-publish`
+    id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
+    signing
 }
 
 group = "com.republicate.kddl"
-version = "1.0-SNAPSHOT"
+version = "0.1"
 
 repositories {
     mavenCentral()
@@ -20,8 +24,6 @@ buildscript {
         classpath("com.strumenta.antlr-kotlin:antlr-kotlin-gradle-plugin:6304d5c1c4")
     }
 }
-
-// implementation("com.strumenta.antlr-kotlin:antlr-kotlin-gradle-plugin:6304d5c1c4")
 
 kotlin {
     val hostOs = System.getProperty("os.name")
@@ -99,3 +101,54 @@ tasks.getByName("compileKotlinJvm").dependsOn("generateKotlinCommonGrammarSource
 application {
     mainClass.set("com.republicate.kddl.MainKt")
 }
+
+tasks {
+    register<Jar>("dokkaJar") {
+        from(dokkaHtml)
+        dependsOn(dokkaHtml)
+        archiveClassifier.set("javadoc")
+    }
+}
+
+signing {
+    useGpgCmd()
+    sign(publishing.publications)
+}
+
+publishing {
+    publications.withType<MavenPublication> {
+        pom {
+            name.set("kddl")
+            description.set("Database model generator")
+            url.set("https://github.com/arkanovicz/kddl")
+            licenses {
+                license {
+                    name.set("The Apache Software License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                }
+            }
+            developers {
+                developer {
+                    name.set("Claude Brisson")
+                    email.set("claude.brisson@gmail.com")
+                    organization.set("republicate.com")
+                    organizationUrl.set("https://republicate.com")
+                }
+            }
+            scm {
+                connection.set("scm:git@github.com:arkanovicz/kddl.git")
+                url.set("https://github.com/arkanovicz/kddl")
+            }
+        }
+        artifact(tasks["dokkaJar"])
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            useStaging.set(true)
+        }
+    }
+}
+
