@@ -129,7 +129,8 @@ Please adapt the installation and run scripts.
 - replace ".>" syntax by "-?>" syntax (nullable foreign key), or by "-> Foo?" syntax
 - find a syntax for cascading
 - support enum(foo,bar) (without quotes) or juste foo|bar
-- try to use the tableoid field to implement inheritance in postgresql
+- use postgreSQL VARCHAR() (without specified length) for string data type
+
 
 And also overcome the limitations listed below...
 
