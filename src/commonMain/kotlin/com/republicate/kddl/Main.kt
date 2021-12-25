@@ -19,6 +19,7 @@ class SemanticException(message: String? = null, cause: Throwable? = null) : Exc
 val argParser = ArgParser("kddl")
 
 enum class Format {
+    KDDL,
     PLANTUML,
     POSTGRESQL
 }
@@ -35,13 +36,23 @@ interface Formatter {
 }
 
 fun main(args: Array<String>) {
-    val input by argParser.option(ArgType.String, shortName = "i", description = "input file").required()
+    val input by argParser.option(ArgType.String, shortName = "i", description = "input file or url").required()
     val format by argParser.option(ArgType.Choice<Format>(), shortName = "f", description = "output format").required()
+    val driver by argParser.option(ArgType.String, shortName = "d", description = "jdbc driver")
     argParser.parse(args)
 
-    val ddl = Utils.getFile(input)
-    val tree = parse(ddl)
+    val tree = when {
+        input.startsWith("jdbc:") -> {
+            driver?.let { loadLibrary(it) }
+            reverse(input)
+        }
+        else -> {
+            val ddl = Utils.getFile(input)
+            parse(ddl)
+        }
+    }
     val formatter = when (format) {
+        Format.KDDL -> KDDLFormatter()
         Format.PLANTUML -> PlantUMLFormatter()
         Format.POSTGRESQL -> PostgreSQLFormatter()
         else -> throw IllegalArgumentException("invalid format")
@@ -132,4 +143,12 @@ fun Database.resolveTable(schema: Schema, astTable: kddlParser.QualifiedContext?
         else -> schemas[ref]?.tables?.get(astTable.name!!.text!!) ?: throw SemanticException("table not found: $ref.$name")
     }
     return table
+}
+
+class KDDLFormatter: Formatter {
+    override fun format(asm: Database, indent: String) = asm.display(indent).toString()
+    override fun format(asm: Schema, indent: String) = asm.display(indent).toString()
+    override fun format(asm: Table, indent: String) = asm.display(indent).toString()
+    override fun format(asm: Field, indent: String) = asm.display(indent).toString()
+    override fun format(asm: ForeignKey, indent: String) = throw NotImplementedError("TODO")
 }

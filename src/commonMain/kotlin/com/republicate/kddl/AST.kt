@@ -1,29 +1,31 @@
 package com.republicate.kddl
 
 abstract  class DBObject(val name : String) {
-    abstract fun display(indent: String = "")
+    abstract fun display(indent: String = "", builder: StringBuilder = StringBuilder()): StringBuilder
 }
 
 open class Database(name : String) : DBObject(name) {
     val options = mutableMapOf<String, Option>()
     val schemas = mutableMapOf<String, Schema>()
-    override fun display(indent: String) {
-        println("${indent}database $name {")
+    override fun display(indent: String, builder: StringBuilder): StringBuilder {
+        builder.appendLine("${indent}database $name {")
         for (schema in schemas.values) {
-            schema.display("$indent  ")
+            schema.display("$indent  ", builder)
         }
-        println("${indent}}")
+        builder.appendLine("${indent}}")
+        return builder
     }
 }
 
 class Schema(val db : Database, name : String) : DBObject(name) {
     val tables = mutableMapOf<String, Table>()
-    override fun display(indent: String) {
-        println("${indent}schema $name {")
+    override fun display(indent: String, builder: StringBuilder): StringBuilder {
+        builder.appendLine("${indent}schema $name {")
         for (table in tables.values) {
-            table.display("$indent  ")
+            table.display("$indent  ", builder)
         }
-        println("${indent}}")
+        builder.appendLine("${indent}}")
+        return builder
     }
 }
 
@@ -71,20 +73,21 @@ open class Table(val schema : Schema, name : String, val parent : Table? = null,
         }
     }
 
-    override fun display(indent: String) {
-        print("${indent}table $name")
+    override fun display(indent: String, builder: StringBuilder): StringBuilder {
+        builder.append("${indent}table $name")
         if (parent != null) {
-            print(" : ")
+            builder.append(" : ")
             if (parent.schema.name != schema.name) {
-                print("${parent.schema.name}.")
+                builder.append("${parent.schema.name}.")
             }
-            print(parent.name)
+            builder.append(parent.name)
         }
-        println(" {")
+        builder.appendLine(" {")
         for (field in fields.values) {
-            field.display("$indent  ")
+            field.display("$indent  ", builder)
         }
-        println("${indent}}")
+        builder.appendLine("${indent}}")
+        return builder
     }
 }
 
@@ -104,6 +107,11 @@ class Field(
         val default : Any? = null,
 
 ) : DBObject(name) {
+    companion object {
+        fun isTextType(type: String): Boolean {
+            return type.startsWith("varchar", true) || type == "char" || type == "text" || type == "clob"
+        }
+    }
     fun isDefaultKey() : Boolean {
         return primaryKey && type == "serial" && name == "${table.name}$suffix" // TODO - handle suffix
     }
@@ -120,30 +128,34 @@ class Field(
         return true
     }
 
-    override fun display(indent: String) {
-        print(indent)
-        if (primaryKey) print('*')
-        else if (unique) print('!')
-        print(name)
+    override fun display(indent: String, builder: StringBuilder): StringBuilder {
+        builder.append(indent)
+        if (primaryKey) builder.append('*')
+        else if (unique) builder.append('!')
+        builder.append(name)
         val fk = getForeignKeys().firstOrNull()
         if (fk != null) {
-            print(" -> ")
+            builder.append(" -> ")
             if (fk.towards.schema.name != table.schema.name) {
-                print("${fk.towards.schema.name}.")
+                builder.append("${fk.towards.schema.name}.")
             }
-            print(fk.towards.name)
-            if (!nonNull) print('?')
+            builder.append(fk.towards.name)
+            if (!nonNull) builder.append('?')
         } else {
-            print(" $type")
-            if (!nonNull) print('?')
+            builder.append(" $type")
+            if (!nonNull) builder.append('?')
             if (default != null) {
-                print(" = $default")
+                if (isTextType(type)) builder.append(" = '$default'")
+                else builder.append(" = $default")
             }
         }
-        println()
+        builder.appendLine()
+        return builder
     }
 }
 
+// CB TODO - for now we don't store pk fields, hoping that it's either a single field PK or that fields are named the same
+// CB TODO - we consider "cascade" but not "set null"
 class ForeignKey(
         val from : Table,
         val fields : Set<Field>,

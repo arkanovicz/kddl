@@ -12,7 +12,7 @@ grammar KDDL {
     table = 'table' NAME ( ':' parent direction? )? ( '{' (field ','? )* '}' )? ;
     parent = ( NAME '.' )? NAME ;
     field = ( primary_key | unique )? NAME ( type optional? default? | arrow ( NAME '.' )? NAME cascade? direction? )? ;
-    type = 'boolean' | 'integer' | 'serial' | 'long' | 'float' | 'double' | 'money' | 'numeric' '(' INTEGER ( ',' INTEGER )? ')' | 'time' | 'date' | 'datetz' | 'datetime' | 'datetimetz' | 'interval' | 'char' ( '(' INTEGER ')' )? | 'varchar' '(' INTEGER ')' | 'text' | 'enum(' STRING ( ','? STRING )* ')' | 'json' | 'jsonb';
+    type = 'boolean' | 'short' | 'integer' | 'serial' | 'long' | 'float' | 'double' | 'money' | 'numeric' '(' INTEGER ( ',' INTEGER )? ')' | 'time' | 'date' | 'datetz' | 'datetime' | 'datetimetz' | 'interval' | 'char' ( '(' INTEGER ')' )? | 'varchar' '(' INTEGER ')' | 'text' | 'enum(' STRING ( ','? STRING )* ')' | 'blob' | 'clob' | 'json' | 'jsonb';
     primary_key = '*' ;
     unique = '!' ;
     optional = '?' ;
