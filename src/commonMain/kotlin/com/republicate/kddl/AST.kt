@@ -44,7 +44,7 @@ open class Table(val schema : Schema, name : String, val parent : Table? = null,
     fun getOrCreatePrimaryKey() : Set<Field> = fields.values.filter { it.primaryKey }.ifEmpty {
         parent?.getOrCreatePrimaryKey() ?: run {
             val pkName = "$name$suffix"
-            val pk = Field(this, pkName, "serial", true)
+            val pk = Field(this, pkName, "serial", true, true, true)
             fields[pkName] = pk
             listOf(pk)
         }
@@ -141,6 +141,8 @@ class Field(
             }
             builder.append(fk.towards.name)
             if (!nonNull) builder.append('?')
+            if (fk.cascade) builder.append(" cascade")
+            if (fk.direction.isNotEmpty()) builder.append(" ${fk.direction}")
         } else {
             builder.append(" $type")
             if (!nonNull) builder.append('?')

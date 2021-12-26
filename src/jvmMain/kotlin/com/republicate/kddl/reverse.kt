@@ -85,7 +85,7 @@ class ReverseEngineer(val url: String) {
 
     fun reverseDatabase(database: Database) {
         schemas {
-            val schema = Schema(database, it.getString("SCHEMA_NAME"))
+            val schema = Schema(database, it.getString("TABLE_SCHEM"))
             database.schemas[schema.name] = schema
             reverseSchema(schema)
         }
@@ -132,7 +132,7 @@ class ReverseEngineer(val url: String) {
                     // else warning TODO
                 }
             }
-            val nonNull = it.getString("IS_NULLANLE") == "NO"
+            val nonNull = it.getString("IS_NULLABLE") == "NO"
             val generated = ("YES" == it.getString("IS_AUTOINCREMENT") || "YES" == it.getString("IS_GENERATEDCOLUMN"))
             val columnDef = it.getString("COLUMN_DEF")
             val field = Field(table, fieldName, dataType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), columnDef)
@@ -146,7 +146,7 @@ class ReverseEngineer(val url: String) {
         }.forEach { table ->
             val fks = mutableMapOf<String, Triple<Table, MutableList<Field>, Boolean>>()
             foreignKeys(table.schema.name, table.name) {
-                val pkSchema = it.getString("PKTABLE_SCHEMA")
+                val pkSchema = it.getString("PKTABLE_SCHEM")
                 val pkTable = it.getString("PKTABLE_NAME")
                 val targetTable = database.schemas[pkSchema]?.tables?.get(pkTable) ?: throw SQLException("could not find table ${pkSchema}.${pkTable}")
                 val fkName = it.getString("FK_NAME") ?: it.getString("PK_NAME") ?: targetTable.name
@@ -174,7 +174,9 @@ class ReverseEngineer(val url: String) {
     }
 
     private fun schemas(op: (ResultSet) -> Unit) = with(metadata.schemas) {
-        asSequence().forEach(op)
+        asSequence().filter {
+            it.getString("TABLE_SCHEM") !in arrayOf("information_schema", "pg_catalog")
+        }.forEach(op)
         close()
     }
 
@@ -202,7 +204,7 @@ class ReverseEngineer(val url: String) {
     }
 
     private fun uniqueIndices(schema: String, table: String, op: (ResultSet) -> Unit) {
-        with (metadata.getPrimaryKeys(catalog, schema, table)) {
+        with (metadata.getIndexInfo(catalog, schema, table, false, false)) {
             asSequence().filter {
                 !it.getBoolean("NON_UNIQUE")
             }.forEach(op)
@@ -218,6 +220,7 @@ class ReverseEngineer(val url: String) {
     }
 
     private val typesMap = mapOf<Int, String>(
+        Types.BIT to "boolean",
         Types.BLOB to "blob",
         Types.BOOLEAN to "boolean",
         Types.CHAR to "char",

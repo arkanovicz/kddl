@@ -41,6 +41,7 @@ done
 is_absolute() {
   case "$1" in
            /*) true;;
+           jdbc*) true;;
             *) false
   esac
 }

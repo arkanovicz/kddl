@@ -72,7 +72,11 @@ kotlin {
         }
         val nativeMain by getting
         val nativeTest by getting
-        val jvmMain by getting
+        val jvmMain by getting {
+            dependencies {
+                runtimeOnly("org.postgresql:postgresql:42.2.18")
+            }
+        }
         val jvmTest by getting {
             dependencies {
                 implementation(kotlin("test"))
