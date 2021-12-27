@@ -76,6 +76,7 @@ class ReverseEngineer(val url: String) {
     private val connection = connect(url)
     private val metadata = connection.metaData
     private val catalog = connection.catalog ?: guessDatabaseName(url)
+    private val vendorFilter = ReverseFilter.getReverseFilter(metadata)
 
     fun process(): Database {
         return Database(catalog).also {
@@ -124,6 +125,7 @@ class ReverseEngineer(val url: String) {
             var dataType = typesMap[sqlType] ?: throw SQLException("unhandled sql type: ${sqlType} (${it.getString("TYPE_NAME")})")
             val colSize = it.getInt("COLUMN_SIZE")
             val colPrec = it.getInt("DECIMAL_DIGITS")
+            var columnDef = it.getString("COLUMN_DEF")
             when (dataType) {
                 "varchar" -> if (colSize != 0) dataType += "($colSize)" // else dataType += "()"
                 "numeric" -> {
@@ -132,9 +134,12 @@ class ReverseEngineer(val url: String) {
                     // else warning TODO
                 }
             }
+            with(vendorFilter.filterType(fieldName, dataType, columnDef)) {
+                dataType = first
+                columnDef = second
+            }
             val nonNull = it.getString("IS_NULLABLE") == "NO"
             val generated = ("YES" == it.getString("IS_AUTOINCREMENT") || "YES" == it.getString("IS_GENERATEDCOLUMN"))
-            val columnDef = it.getString("COLUMN_DEF")
             val field = Field(table, fieldName, dataType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), columnDef)
             table.fields[fieldName] = field
         }
