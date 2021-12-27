@@ -147,9 +147,8 @@ class Field(
             builder.append(" $type")
             if (!nonNull) builder.append('?')
             if (default != null) {
-//                if (isTextType(type)) builder.append(" = '$default'")
-//                else builder.append(" = $default")
-                builder.append(" = $default")
+                if (isTextType(type) && !type.startsWith("'")) builder.append(" = '$default'")
+                else builder.append(" = $default")
             }
         }
         builder.appendLine()
