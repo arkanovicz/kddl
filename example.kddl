@@ -8,9 +8,6 @@
 // a database contains options and schemas
 database example {
 
-  // options
-  option id_suffix = '_key' // default is '_id'
-
   // a schema contains tables and links
   schema geo {
 
@@ -30,7 +27,7 @@ database example {
       distance integer
       *src_id -> zone cascade    // mandatory foreign key field, cascade on delete
       *dst_id ---> zone cascade  // arrows can be as long as you want
-      *step_id ?-> zone (down)   // nullable foreign key field
+      *step_id -> zone? (down)   // nullable foreign key field
     }
 
     city *--> department (up) // plantuml arrow direction can be specified

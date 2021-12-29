@@ -133,7 +133,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
                         linkTable.fields[it.name] = fkField
                         fkField
                     }.toSet()
-                    val fk = ForeignKey(linkTable, fkFields, left, true, false, true)
+                    val fk = ForeignKey(linkTable, fkFields, it, true, false, true)
                     linkTable.foreignKeys.add(fk)
                 }
                 schema.tables[linkTable.name] = linkTable
@@ -150,7 +150,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
                     fkField
                 }.toSet()
                 val cascade = astLink.CASCADE() != null
-                val fk = ForeignKey(fkTable, fkFields, left, true, false, cascade)
+                val fk = ForeignKey(fkTable, fkFields, pkTable, true, false, cascade)
                 fkTable.foreignKeys.add(fk)
             }
         }
