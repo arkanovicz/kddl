@@ -39,7 +39,7 @@ database geo {
       distance integer
       src_id -> zone    // mandatory foreign key field
       dst_id ---> zone  // arrows can be as long as you want
-      hub_id ..> zone (down)   // nullable foreign key field
+      hub_id --> zone? (down)   // nullable foreign key field
     }
 
     city *--> department (up) // plantuml arrow direction can be specified
@@ -120,25 +120,14 @@ $ ./gradlew build
 ## TODO
 
 - finish handling of multivalued fks
-- reverse enginering via modality
-- plugins for gradle / maven / kobalt
-- foreign key links could be written reverse
+- plugins for gradle[done in skorm] / maven / kobalt
 - db versionning handling (generation of update scripts from previous version)
-- make `database {}` surrounding optional
-- allow reverse arrows
-- only schema and table names are quoted for now
-- prefix '+' for multivalued fks (change number of '+' for several fks)
 - custom types
 - more tests (for instance: inheritance from another schema's table)
-- add consistence checks on fk fields types correspondances
 - align fields (add a space if no field prefix)
 - kddl files inclusions
 - add implicit identifiers at start
-- replace ".>" syntax by "-?>" syntax (nullable foreign key), or by "-> Foo?" syntax
-- find a syntax for cascading
 - support enum(foo,bar) (without quotes) or juste foo|bar
-- use postgreSQL VARCHAR() (without specified length) for string data type
-
 
 And also overcome the limitations listed below...
 
@@ -146,3 +135,4 @@ And also overcome the limitations listed below...
 
 + a field can be implied in one foreign key at most (but maybe it as a good practice per se)
 + multivalued foreign keys fields must be named after target primary key fields (quite the same...)
++ enum fields of the same name share the same values (also a good practice!)
