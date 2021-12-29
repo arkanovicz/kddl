@@ -10,6 +10,21 @@ This tool is fully functional but is still in its infancy, it should gain many m
 
 ## Usage
 
+```
+kddl [OPTIONS] > [output_file]
+```
+
+Options:
+```
+  --input, -i  -> mandatory; input file or JDBC URL (with credentials)
+  --format, -f -> mandatory; output format { Value should be one of [kddl, plantuml, postgresql] }
+  --driver, -d -> optional; jdbc driver, needed when input is a JDBC URL { String }
+  --help, -h   -> Usage info 
+
+```
+
+## Example
+
 Here's the `example.kddl` file, which should be enough to understand the syntax by example.
 
 ```
@@ -132,6 +147,7 @@ $ ./gradlew build
 ## TODO
 
 - more options for configuration
+- document library usage
 - plugins for gradle [done in skorm] / maven / kobalt
 - db versionning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
 - custom types
