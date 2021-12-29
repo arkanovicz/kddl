@@ -63,7 +63,7 @@ class PlantUMLFormatter : Formatter {
             }
             ret.append(EOL)
             if (asm.parent != null) with(asm) {
-                ret.append("${indent}$name -${asm.parentDirection}-|> ${parent!!.name}$EOL")
+                ret.append("${indent}$name -${asm.parentDirection.removeSurrounding("(", ")")}-|> ${parent!!.name}$EOL")
             }
         }
         return ret.toString()
@@ -100,7 +100,7 @@ class PlantUMLFormatter : Formatter {
         val ret = StringBuilder()
         if (asm.from is JoinTable) {
             if (asm.from.sourceTable == asm.towards) {
-                ret.append("${indent}${asm.from.sourceTable.name} }-${asm.direction}-{ ${asm.from.destTable.name}")
+                ret.append("${indent}${asm.from.sourceTable.name} }-${asm.direction.removeSurrounding("(", ")")}-{ ${asm.from.destTable.name}")
                 ret.append(EOL)
             } // else NOP
         }
@@ -108,7 +108,7 @@ class PlantUMLFormatter : Formatter {
             ret.append("${indent}${asm.from.name} ")
             if (!asm.unique) ret.append('}')
             val line = if (asm.nonNull) "-" else "."
-            ret.append("${line}${asm.direction}${line}> ")
+            ret.append("${line}${asm.direction.removeSurrounding("(", ")")}${line}> ")
             // if (asm.towards.schema != asm.from.schema) ret.append(asm.towards.schema.name).append('.')
             ret.append(asm.towards.name)
             if (asm.isFieldLink()) {
