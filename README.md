@@ -92,12 +92,11 @@ To generate the plantuml graph definition script for this model, do:
 ```shell
 kddl -i example.kddl -f plantuml > example.pu
 plantuml -Tpng example.pu
-eog example.png
 ```
 
 And here's the result:
 
-![](example.png)
+![example.png](https://raw.githubusercontent.com/arkanovicz/kddl/main/example.png)
 
 You may need to install plantuml, with something like `sudo apt install plantuml` on linux platforms.
 
