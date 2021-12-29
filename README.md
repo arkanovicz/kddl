@@ -164,10 +164,8 @@ $ ./gradlew build
 - add implicit identifiers at start
 - support enum(foo,bar) (without quotes) or juste foo|bar
 
-And also overcome the limitations listed below...
-
 ## limitations
 
-+ a field can be implied in one foreign key at most (but maybe it as a good practice per se)
++ a field can be implied in one foreign key at most (but it may be a good practice...)
 + multivalued foreign keys fields must be named after target primary key fields (quite the same...)
 + enum fields of the same name share the same values (also a good practice!)
