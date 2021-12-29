@@ -1,7 +1,6 @@
 plugins {
-    kotlin("multiplatform") version "1.5.31"
-    // dokka disabled for now (the plugin seems to often encounter "JVM metaspace exhaustions"... ?!)
-//    id("org.jetbrains.dokka") version "1.5.0"
+    kotlin("multiplatform") version "1.6.10"
+    id("org.jetbrains.dokka") version "1.5.0"
     application
     `maven-publish`
     id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
@@ -62,20 +61,20 @@ kotlin {
         val commonMain by getting {
             dependsOn(commonAntlr)
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.4")
             }
             kotlin.srcDirs += File("build/generated-src/commonMain/kotlin")
         }
         val commonTest by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
             }
         }
         val nativeMain by getting
         val nativeTest by getting
         val jvmMain by getting {
             dependencies {
-                runtimeOnly("org.postgresql:postgresql:42.2.18")
+                runtimeOnly("org.postgresql:postgresql:42.3.1")
             }
         }
         val jvmTest by getting {
@@ -108,13 +107,13 @@ application {
     mainClass.set("com.republicate.kddl.MainKt")
 }
 
-//tasks {
-//    register<Jar>("dokkaJar") {
-//        from(dokkaHtml)
-//        dependsOn(dokkaHtml)
-//        archiveClassifier.set("javadoc")
-//    }
-//}
+tasks {
+    register<Jar>("dokkaJar") {
+        from(dokkaHtml)
+        dependsOn(dokkaHtml)
+        archiveClassifier.set("javadoc")
+    }
+}
 
 signing {
     useGpgCmd()
@@ -146,7 +145,7 @@ publishing {
                 url.set("https://github.com/arkanovicz/kddl")
             }
         }
-//        artifact(tasks["dokkaJar"])
+        artifact(tasks["dokkaJar"])
     }
 }
 
