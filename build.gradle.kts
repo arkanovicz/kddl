@@ -1,6 +1,7 @@
 plugins {
     kotlin("multiplatform") version "1.5.31"
-    id("org.jetbrains.dokka") version "1.5.0"
+    // dokka disabled for now (the plugin seems to often encounter "JVM metaspace exhaustions"... ?!)
+//    id("org.jetbrains.dokka") version "1.5.0"
     application
     `maven-publish`
     id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
@@ -98,21 +99,22 @@ tasks.register<com.strumenta.antlrkotlin.gradleplugin.AntlrKotlinTask>("generate
                 include("*.g4")
             }
     outputDirectory = File("build/generated-src/commonMain/kotlin")
+    group = "code generation"
 }
 
-tasks.getByName("compileKotlinJvm").dependsOn("generateKotlinCommonGrammarSource")
+tasks.filter { it.name.startsWith("compileKotlin") }.forEach { it.dependsOn("generateKotlinCommonGrammarSource") }
 
 application {
     mainClass.set("com.republicate.kddl.MainKt")
 }
 
-tasks {
-    register<Jar>("dokkaJar") {
-        from(dokkaHtml)
-        dependsOn(dokkaHtml)
-        archiveClassifier.set("javadoc")
-    }
-}
+//tasks {
+//    register<Jar>("dokkaJar") {
+//        from(dokkaHtml)
+//        dependsOn(dokkaHtml)
+//        archiveClassifier.set("javadoc")
+//    }
+//}
 
 signing {
     useGpgCmd()
@@ -144,7 +146,7 @@ publishing {
                 url.set("https://github.com/arkanovicz/kddl")
             }
         }
-        artifact(tasks["dokkaJar"])
+//        artifact(tasks["dokkaJar"])
     }
 }
 
@@ -155,4 +157,3 @@ nexusPublishing {
         }
     }
 }
-
