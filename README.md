@@ -27,7 +27,12 @@ Options:
 
 Here's the `example.kddl` file, which should be enough to understand the syntax by example.
 
-```
+<details>
+  <summary>
+    click to expand
+  </summary>
+  <div>
+    <pre>
 // Definition for database geo
 
 // Supported data types:
@@ -85,7 +90,10 @@ database geo {
   }
 
 }
-```
+    </pre>
+  </div>
+</details>
+
 
 To generate the plantuml graph definition script for this model, do:
 
