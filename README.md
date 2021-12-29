@@ -1,6 +1,12 @@
-# kddl
+﻿# kddl
 
-Kotlin SQL DDL format and associated formatters towards PostgresQL and PlantUML.
+Kddl is intended to be a Swiss army knife for database models.
+
+It takes a model or a running datasource as input, and an output format (current valid outputs are postgresql, kddl and plantuml).
+
+Kddl is multiplaform (jvm, js, native) and can be used as a standalone application or as a library. The reverse engineering feature is only available on the jvm platform for now.
+
+This tool is fully functional but is still in its infancy, it should gain many more features and formats over time. If you try it, be sure to give some feedback!
 
 ## Usage
 
@@ -10,15 +16,12 @@ Here's the `example.kddl` file, which should be enough to understand the syntax 
 // Definition for database geo
 
 // Supported data types:
-//   boolean, integer, serial, long, float, double, numeric(*n*,p), money,
+//   boolean, integer, serial, long, float, double, numeric(*n*,*p*), money,
 //   time, date, datetz, datetime, datetimetz, char, char(*n), varchar(*n*), text,
-//   enum( 'value1' [,] 'value2' ...)
+//   enum( 'value1' [,] 'value2' ...), blob, clob
 
 // a database contains options and schemas
 database geo {
-
-  // options
-  option id_suffix = '_key' // default is '_id'
 
   // a schema contains tables and links
   schema infra {
@@ -48,6 +51,7 @@ database geo {
   schema client {
 
     table contact {
+      // no primary key definition; see below
       // gender, lastname, firstname // field types are optional for plantuml (use a coma to disambiguate)
       gender char?                   // field types are mandatory for postgresql
       firstname varchar(200)
@@ -60,7 +64,7 @@ database geo {
       address text?
     }
 
-    location *--> contact
+    location *--> contact    // will generate the implicit "contact_id serial" primary key in contact
     location *..> infra.zone // foreign key referencing a table in another schema
 
   }
@@ -80,7 +84,7 @@ And here's the result:
 
 ![](example.png)
 
-You may need to install plantuml, with something like `sudo apt install plantuml`.
+You may need to install plantuml, with something like `sudo apt install plantuml` on linux platforms.
 
 To generate the PostgreSQL creation script for this model, do:
 
@@ -88,18 +92,28 @@ To generate the PostgreSQL creation script for this model, do:
 kddl -i example.kddl -f postgresql > example.sql
 ```
 
+To do the reverse, aka generate the kddl model file from a running JDBC database, you can do:
+
+```
+kddl -i jdbc://...<jdbc URL with credentials> -f kddl > output.kddl
+```
+
 ## Installation (linux)
+
+## Prerequisites
+
+You'll need to have `gradle` installed.
 
 ### Linux
 
-You first need to clone this repository and launch the `install.sh` script, which will install the kddl library in your local maven repository, along with its dependencies, among which a [forked version of the net.akerhurst.language:agl-processor](https://github.com/arkanovicz/net.akehurst.language).
+You first need to clone this repository and launch the `install.sh` script, which will build and install the kddl library in your local maven repository.
 
 ```shell
 git clone git@gitlab.renegat.net:claude/kddl.git
 ./install.sh
 ```
 
-To install the `kddl` command everywhere, do:
+To install the `kddl` command everywhere, assuming that `~/bin` is in your path, do:
 
 ```shell
 ln -s ~/<path_to_kddl_repository>/kddl.sh ~/bin/kddl
@@ -112,16 +126,14 @@ Please adapt the installation and run scripts.
 ## Building
 
 ```
-$ ./gradlew generateKotlinCommonGrammarSource
 $ ./gradlew build
 ```
 
-
 ## TODO
 
-- finish handling of multivalued fks
-- plugins for gradle[done in skorm] / maven / kobalt
-- db versionning handling (generation of update scripts from previous version)
+- more options for configuration
+- plugins for gradle [done in skorm] / maven / kobalt
+- db versionning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
 - custom types
 - more tests (for instance: inheritance from another schema's table)
 - align fields (add a space if no field prefix)

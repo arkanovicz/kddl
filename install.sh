@@ -1,4 +1,4 @@
 #!/bin/bash
 
-./gradlew generateKotlinCommonGrammarSource build publishToMavenLocal
+./gradlew build publishToMavenLocal
 
