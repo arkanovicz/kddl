@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.republicate.kddl"
-version = "0.2"
+version = "0.3"
 
 repositories {
     mavenCentral()
@@ -26,6 +26,12 @@ buildscript {
 }
 
 kotlin {
+    sourceSets.all {
+        languageSettings.apply {
+            languageVersion = "1.5"
+            apiVersion = "1.5"
+        }
+    }
     val hostOs = System.getProperty("os.name")
     val isMingwX64 = hostOs.startsWith("Windows")
     val nativeTarget = when {
@@ -34,7 +40,6 @@ kotlin {
         isMingwX64 -> mingwX64("native")
         else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
     }
-
     nativeTarget.apply {
         binaries {
             executable {
@@ -54,6 +59,7 @@ kotlin {
     sourceSets {
         val commonAntlr by creating {
             dependencies {
+                // as api to expose CharStream
                 api("com.strumenta.antlr-kotlin:antlr-kotlin-runtime:6304d5c1c4")
             }
             kotlin.srcDir("build/generated-src/commonMain/kotlin")
