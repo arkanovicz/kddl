@@ -59,16 +59,6 @@ fun main(args: Array<String>) {
     println(ret)
 }
 
-fun parse(ddl: CharStream): Database {
-    val lexer = kddlLexer(ddl)
-    val tokenStream = CommonTokenStream(lexer)
-    val parser = kddlParser(tokenStream)
-    parser.addErrorListener(ConsoleErrorListener())
-    // parser.errorHandler = ParsingErrorHandler()
-    val root = parser.database()
-    return buildAst(root)
-}
-
 fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
     // database
     val database = Database(astDatabase.name!!.text!!)
