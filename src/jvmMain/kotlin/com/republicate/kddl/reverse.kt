@@ -69,7 +69,7 @@ class ResultSetIterator(val rs: ResultSet): Iterator<ResultSet> {
 fun ResultSet.asSequence() = ResultSetIterator(this).asSequence()
 
 @Throws(SQLException::class)
-actual fun reverse(url: String): Database = ReverseEngineer(url).process()
+actual fun reverse(url: String): ASTDatabase = ReverseEngineer(url).process()
 
 class ReverseEngineer(val url: String) {
 
@@ -78,30 +78,30 @@ class ReverseEngineer(val url: String) {
     private val catalog = connection.catalog ?: guessDatabaseName(url)
     private val vendorFilter = ReverseFilter.getReverseFilter(metadata)
 
-    fun process(): Database {
-        return Database(catalog).also {
+    fun process(): ASTDatabase {
+        return ASTDatabase(catalog).also {
             reverseDatabase(it)
         }
     }
 
-    fun reverseDatabase(database: Database) {
+    fun reverseDatabase(database: ASTDatabase) {
         schemas {
-            val schema = Schema(database, it.getString("TABLE_SCHEM"))
+            val schema = ASTSchema(database, it.getString("TABLE_SCHEM"))
             database.schemas[schema.name] = schema
             reverseSchema(schema)
         }
         reverseForeignKeys(database)
     }
 
-    fun reverseSchema(schema: Schema) {
+    fun reverseSchema(schema: ASTSchema) {
         tables(schema.name) {
-            val table = Table(schema, it.getString("TABLE_NAME"))
+            val table = ASTTable(schema, it.getString("TABLE_NAME"))
             schema.tables[table.name] = table
             reverseTable(table)
         }
     }
 
-    fun reverseTable(table: Table) {
+    fun reverseTable(table: ASTTable) {
 
         val keys = mutableSetOf<String>()
         primaryKeys(table.schema.name, table.name) {
@@ -140,16 +140,16 @@ class ReverseEngineer(val url: String) {
             }
             val nonNull = it.getString("IS_NULLABLE") == "NO"
             val generated = ("YES" == it.getString("IS_AUTOINCREMENT") || "YES" == it.getString("IS_GENERATEDCOLUMN"))
-            val field = Field(table, fieldName, dataType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), columnDef)
+            val field = ASTField(table, fieldName, dataType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), columnDef)
             table.fields[fieldName] = field
         }
     }
 
-    fun reverseForeignKeys(database: Database) {
+    fun reverseForeignKeys(database: ASTDatabase) {
         database.schemas.values.flatMap {
                 it ->  it.tables.values
         }.forEach { table ->
-            val fks = mutableMapOf<String, Triple<Table, MutableList<Field>, Boolean>>()
+            val fks = mutableMapOf<String, Triple<ASTTable, MutableList<ASTField>, Boolean>>()
             foreignKeys(table.schema.name, table.name) {
                 val pkSchema = it.getString("PKTABLE_SCHEM")
                 val pkTable = it.getString("PKTABLE_NAME")
@@ -167,7 +167,7 @@ class ReverseEngineer(val url: String) {
             fks.values.forEach {
                 val nonNull = it.second.all { it.nonNull }
                 val unique = nonNull && it.second.any { it.unique }
-                val foreignKey = ForeignKey(table, it.second.toSet(), it.first, nonNull, unique, it.third)
+                val foreignKey = ASTForeignKey(table, it.second.toSet(), it.first, nonNull, unique, it.third)
                 table.foreignKeys.add(foreignKey)
             }
         }

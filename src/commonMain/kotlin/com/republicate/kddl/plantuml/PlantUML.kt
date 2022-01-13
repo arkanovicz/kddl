@@ -9,7 +9,7 @@ object Creole {
 }
 
 class PlantUMLFormatter : Formatter {
-    override fun format(asm: Database, indent: String): String {
+    override fun format(asm: ASTDatabase, indent: String): String {
         val ret = StringBuilder()
         ret.append("@startuml${EOL}'' Database ${asm.name}$EOL")
         // TODO plantuml options
@@ -34,7 +34,7 @@ class PlantUMLFormatter : Formatter {
         return ret.toString()
     }
 
-    override fun format(asm: Schema, indent: String): String {
+    override fun format(asm: ASTSchema, indent: String): String {
         val ret = StringBuilder("${indent}package ${asm.name} {$EOL")
         ret.append(
             asm.tables.map {
@@ -45,7 +45,7 @@ class PlantUMLFormatter : Formatter {
         return ret.toString()
     }
 
-    override fun format(asm: Table, indent: String): String {
+    override fun format(asm: ASTTable, indent: String): String {
         val ret = StringBuilder()
         if (asm !is JoinTable) {
             ret.append("${indent}class ${asm.name}")
@@ -69,7 +69,7 @@ class PlantUMLFormatter : Formatter {
         return ret.toString()
     }
 
-    override fun format(asm: Field, indent: String): String {
+    override fun format(asm: ASTField, indent: String): String {
         val ret = StringBuilder(indent)
         asm.apply {
             // decorated name
@@ -96,7 +96,7 @@ class PlantUMLFormatter : Formatter {
         return ret.toString()
     }
 
-    override fun format(asm: ForeignKey, indent: String): String {
+    override fun format(asm: ASTForeignKey, indent: String): String {
         val ret = StringBuilder()
         if (asm.from is JoinTable) {
             if (asm.from.sourceTable == asm.towards) {

@@ -24,7 +24,7 @@ class PostgreSQLFormatter: Formatter {
         return ret.toString()
     }
 
-    override fun format(asm: Database, indent: String): String {
+    override fun format(asm: ASTDatabase, indent: String): String {
         val ret = StringBuilder("-- database ${asm.name}$EOL")
         // TODO postgresql options
         ret.append(
@@ -35,7 +35,7 @@ class PostgreSQLFormatter: Formatter {
         return ret.toString()
     }
 
-    override fun format(asm: Schema, indent: String): String {
+    override fun format(asm: ASTSchema, indent: String): String {
         val ret = StringBuilder()
         val schemaName = camelToSnake(asm.name)
         ret.append("$EOL-- schema $schemaName$EOL")
@@ -75,16 +75,16 @@ class PostgreSQLFormatter: Formatter {
                 // foreign key from base to parent
                 var parent = tbl.parent
                 val fkFields =  parent!!.getPrimaryKey().map {
-                        field -> Field(tbl, field.name, field.type)
+                        field -> ASTField(tbl, field.name, field.type)
                 }.toSet()
-                val fk = ForeignKey(tbl, fkFields, parent, true, true, true)
+                val fk = ASTForeignKey(tbl, fkFields, parent, true, true, true)
                 ret.append(format(fk, indent)).append(EOL)
             }
 
         return ret.toString()
     }
 
-    override fun format(asm: Table, indent: String): String {
+    override fun format(asm: ASTTable, indent: String): String {
         val ret = StringBuilder()
         var tableName = camelToSnake(asm.name)
         var viewName : String? = null;
@@ -286,7 +286,7 @@ class PostgreSQLFormatter: Formatter {
         "double" to "double precision"
     )
 
-    override fun format(asm: Field, indent: String): String {
+    override fun format(asm: ASTField, indent: String): String {
         val ret = StringBuilder(indent)
         asm.apply {
             ret.append(camelToSnake(name))
@@ -314,7 +314,7 @@ class PostgreSQLFormatter: Formatter {
         return ret.toString()
     }
 
-    override fun format(asm: ForeignKey, indent: String): String {
+    override fun format(asm: ASTForeignKey, indent: String): String {
         val src = asm.from
         val ret = StringBuilder()
         val srcName =

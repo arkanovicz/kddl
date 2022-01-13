@@ -6,7 +6,7 @@ import org.antlr.v4.kotlinruntime.*
 import org.antlr.v4.kotlinruntime.tree.Tree
 import org.antlr.v4.kotlinruntime.tree.Trees
 
-fun parse(ddl: CharStream, errorListener: ANTLRErrorListener = ConsoleErrorListener()): Database {
+fun parse(ddl: CharStream, errorListener: ANTLRErrorListener = ConsoleErrorListener()): ASTDatabase {
     val lexer = kddlLexer(ddl)
     val tokenStream = CommonTokenStream(lexer)
     val parser = kddlParser(tokenStream)
@@ -15,16 +15,16 @@ fun parse(ddl: CharStream, errorListener: ANTLRErrorListener = ConsoleErrorListe
     return buildAst(root)
 }
 
-fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
+fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
     // database
-    val database = Database(astDatabase.name!!.text!!)
+    val database = ASTDatabase(astDatabase.name!!.text!!)
     for (astSchema in astDatabase.findSchema()) {
         // schema
-        val schema = Schema(database, astSchema.name!!.text!!)
+        val schema = ASTSchema(database, astSchema.name!!.text!!)
         database.schemas[schema.name] = schema
         for (astTable in astSchema.findTable()) {
             // table
-            val table = Table(schema, astTable.name!!.text!!, database.resolveTable(schema, astTable.par), astTable.findDirection()?.text ?: "")
+            val table = ASTTable(schema, astTable.name!!.text!!, database.resolveTable(schema, astTable.par), astTable.findDirection()?.text ?: "")
             schema.tables[table.name] = table
             for (astField in astTable.findField()) {
                 // field
@@ -48,16 +48,16 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
                         }
                     }
                     val type = astField.findType() ?: throw SemanticException("type not found for field: ${astField.text}")
-                    Field(table, fieldName, type.text, pk, nonNull, unique, default)
+                    ASTField(table, fieldName, type.text, pk, nonNull, unique, default)
                 } else {
                     // link field
                     val refPk = reference.getOrCreatePrimaryKey()
                     val cascade = astField.CASCADE() != null
                     val direction = astField.findDirection()?.text ?: ""
                     val fieldType = refPk.first().type.let { if (it == "serial") "int" else it }
-                    Field(table, fieldName, fieldType, pk, nonNull, unique)
+                    ASTField(table, fieldName, fieldType, pk, nonNull, unique)
                         .also {
-                            val fk = ForeignKey(table, setOf(it), reference, nonNull, unique, cascade, direction)
+                            val fk = ASTForeignKey(table, setOf(it), reference, nonNull, unique, cascade, direction)
                             table.foreignKeys.add(fk)
                         }
                 }
@@ -72,16 +72,16 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
             val leftNoNull = astLink.left_optional == null
             val rightNoNull = astLink.right_optional == null
             if (leftMult && rightMult) {
-                val linkTable = Table(left.schema, "${left.name}_${right.name}")
+                val linkTable = ASTTable(left.schema, "${left.name}_${right.name}")
                 left.schema.tables[linkTable.name] = linkTable
                 arrayOf(left, right).forEach {
                     val pk = it.getOrCreatePrimaryKey()
                     val fkFields = pk.map {
-                        val fkField = Field(linkTable, it.name, it.type.let { if (it == "serial") "int" else it}, false, true, false)
+                        val fkField = ASTField(linkTable, it.name, it.type.let { if (it == "serial") "int" else it}, false, true, false)
                         linkTable.fields[it.name] = fkField
                         fkField
                     }.toSet()
-                    val fk = ForeignKey(linkTable, fkFields, it, true, false, true)
+                    val fk = ASTForeignKey(linkTable, fkFields, it, true, false, true)
                     linkTable.foreignKeys.add(fk)
                 }
                 schema.tables[linkTable.name] = linkTable
@@ -98,7 +98,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
                             if (fkField == null) it.name
                             else "${pkTable.name.decapitalize()}${it.name.capitalize()}"
                         val type = it.type.let { if (it == "serial") "int" else it}
-                        fkField = Field(fkTable, fieldName, type, false, nonNull, false)
+                        fkField = ASTField(fkTable, fieldName, type, false, nonNull, false)
                         fkTable.fields[fieldName] = fkField
                     }
                     if (fkField.type != it.type && it.type == "serial" && fkField.type !in arrayOf("int", "long"))
@@ -106,7 +106,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
                     fkField
                 }.toSet()
                 val cascade = astLink.CASCADE() != null
-                val fk = ForeignKey(fkTable, fkFields, pkTable, true, false, cascade)
+                val fk = ASTForeignKey(fkTable, fkFields, pkTable, true, false, cascade)
                 fkTable.foreignKeys.add(fk)
             }
         }
@@ -129,7 +129,7 @@ fun Tree.format(parser: Parser, indent: Int = 0): String = buildString {
     }
 }
 
-fun Database.resolveTable(defSchema: Schema?, astTable: kddlParser.QualifiedContext?) : Table? {
+fun ASTDatabase.resolveTable(defSchema: ASTSchema?, astTable: kddlParser.QualifiedContext?) : ASTTable? {
     if (astTable == null) return null
     val schema = astTable.ref_schema?.text?.let { schemas[it] } ?: defSchema ?: throw SemanticException("no schema")
     val name = astTable.name!!.text!!
@@ -138,9 +138,9 @@ fun Database.resolveTable(defSchema: Schema?, astTable: kddlParser.QualifiedCont
 }
 
 class KDDLFormatter: Formatter {
-    override fun format(asm: Database, indent: String) = asm.display(indent).toString()
-    override fun format(asm: Schema, indent: String) = asm.display(indent).toString()
-    override fun format(asm: Table, indent: String) = asm.display(indent).toString()
-    override fun format(asm: Field, indent: String) = asm.display(indent).toString()
-    override fun format(asm: ForeignKey, indent: String) = throw NotImplementedError("TODO")
+    override fun format(asm: ASTDatabase, indent: String) = asm.display(indent).toString()
+    override fun format(asm: ASTSchema, indent: String) = asm.display(indent).toString()
+    override fun format(asm: ASTTable, indent: String) = asm.display(indent).toString()
+    override fun format(asm: ASTField, indent: String) = asm.display(indent).toString()
+    override fun format(asm: ASTForeignKey, indent: String) = throw NotImplementedError("TODO")
 }

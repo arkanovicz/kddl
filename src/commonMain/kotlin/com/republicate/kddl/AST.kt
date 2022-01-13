@@ -4,9 +4,9 @@ abstract  class DBObject(val name : String) {
     abstract fun display(indent: String = "", builder: StringBuilder = StringBuilder()): StringBuilder
 }
 
-open class Database(name : String) : DBObject(name) {
+open class ASTDatabase(name : String) : DBObject(name) {
     val options = mutableMapOf<String, Option>()
-    val schemas = mutableMapOf<String, Schema>()
+    val schemas = mutableMapOf<String, ASTSchema>()
     override fun display(indent: String, builder: StringBuilder): StringBuilder {
         builder.appendLine("${indent}database $name {")
         for (schema in schemas.values) {
@@ -17,8 +17,8 @@ open class Database(name : String) : DBObject(name) {
     }
 }
 
-class Schema(val db : Database, name : String) : DBObject(name) {
-    val tables = mutableMapOf<String, Table>()
+class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
+    val tables = mutableMapOf<String, ASTTable>()
     override fun display(indent: String, builder: StringBuilder): StringBuilder {
         builder.appendLine("${indent}schema $name {")
         for (table in tables.values) {
@@ -29,29 +29,29 @@ class Schema(val db : Database, name : String) : DBObject(name) {
     }
 }
 
-open class Table(val schema : Schema, name : String, val parent : Table? = null, val parentDirection : String = "") : DBObject(name) {
+open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable? = null, val parentDirection : String = "") : DBObject(name) {
 
-    val fields = mutableMapOf<String, Field>()
-    val foreignKeys = mutableListOf<ForeignKey>()
-    val children = mutableSetOf<Table>()
+    val fields = mutableMapOf<String, ASTField>()
+    val foreignKeys = mutableListOf<ASTForeignKey>()
+    val children = mutableSetOf<ASTTable>()
 
     init {
         parent?.children?.add(this) // yeah, I know, leaking out 'this' from ctor... TODO
     }
 
-    fun getPrimaryKey() : Set<Field> = fields.values.filter { it.primaryKey }.toSet()
+    fun getPrimaryKey() : Set<ASTField> = fields.values.filter { it.primaryKey }.toSet()
 
-    fun getOrCreatePrimaryKey() : Set<Field> = fields.values.filter { it.primaryKey }.ifEmpty {
+    fun getOrCreatePrimaryKey() : Set<ASTField> = fields.values.filter { it.primaryKey }.ifEmpty {
         parent?.getOrCreatePrimaryKey() ?: run {
             val pkName = "$name$suffix"
-            val pk = Field(this, pkName, "serial", true, true, true)
+            val pk = ASTField(this, pkName, "serial", true, true, true)
             fields[pkName] = pk
             listOf(pk)
         }
     }.toSet()
 
-    fun getMaybeInheritedField(name: String) : Field? {
-        var targetTable : Table? = this
+    fun getMaybeInheritedField(name: String) : ASTField? {
+        var targetTable : ASTTable? = this
         while (targetTable != null) {
             val field = targetTable.fields[name]
             if (field != null) return field
@@ -61,7 +61,7 @@ open class Table(val schema : Schema, name : String, val parent : Table? = null,
     }
 
     companion object {
-        fun findTable(schema : Schema, tableName : String, targetSchemaName : String = "") : Table {
+        fun findTable(schema : ASTSchema, tableName : String, targetSchemaName : String = "") : ASTTable {
             val targetSchema =
                 if (targetSchemaName.isEmpty()) schema
                 else schema.db.schemas.getOrElse(targetSchemaName) { // CB TODO see if better to return null
@@ -91,22 +91,22 @@ open class Table(val schema : Schema, name : String, val parent : Table? = null,
     }
 }
 
-class JoinTable(schema: Schema, val sourceTable: Table, val destTable : Table) : Table(schema, "${sourceTable.name}_${destTable.name}") {
+class JoinTable(schema: ASTSchema, val sourceTable: ASTTable, val destTable : ASTTable) : ASTTable(schema, "${sourceTable.name}_${destTable.name}") {
 
 }
 
 val suffix = "_id"
 
-class Field(
-        val table : Table,
-        name : String,
-        val type : String,
-        val primaryKey: Boolean = false,
-        val nonNull: Boolean = true,
-        val unique : Boolean = false,
-        val default : Any? = null,
+class ASTField(
+    val table : ASTTable,
+    name : String,
+    val type : String,
+    val primaryKey: Boolean = false,
+    val nonNull: Boolean = true,
+    val unique : Boolean = false,
+    val default : Any? = null,
 
-) : DBObject(name) {
+    ) : DBObject(name) {
     companion object {
         fun isTextType(type: String): Boolean {
             return type.startsWith("varchar", true) || type == "char" || type == "text" || type == "clob"
@@ -115,7 +115,7 @@ class Field(
     fun isDefaultKey() : Boolean {
         return primaryKey && type == "serial" && name == "${table.name}$suffix" // TODO - handle suffix
     }
-    fun getForeignKeys() : List<ForeignKey> = table.foreignKeys.filter { this in it.fields }
+    fun getForeignKeys() : List<ASTForeignKey> = table.foreignKeys.filter { this in it.fields }
     fun isLinkField() : Boolean = !getForeignKeys().isEmpty()
     fun isImplicitLinkField() : Boolean {
         val fks = getForeignKeys()
@@ -158,14 +158,14 @@ class Field(
 
 // CB TODO - for now we don't store pk fields, hoping that it's either a single field PK or that fields are named the same
 // CB TODO - we consider "cascade" but not "set null"
-class ForeignKey(
-        val from : Table,
-        val fields : Set<Field>,
-        val towards : Table,
-        val nonNull: Boolean = false,
-        val unique: Boolean = false,
-        val cascade: Boolean = false,
-        val direction: String = ""
+class ASTForeignKey(
+    val from : ASTTable,
+    val fields : Set<ASTField>,
+    val towards : ASTTable,
+    val nonNull: Boolean = false,
+    val unique: Boolean = false,
+    val cascade: Boolean = false,
+    val direction: String = ""
 ) {
     fun isFieldLink() : Boolean {
         if (fields.size != 1) return false
@@ -185,22 +185,22 @@ class Option(
 
 // DSL
 
-fun database(name : String, content: Database.() -> Unit) : Database {
-    return Database(name).apply(content)
+fun database(name : String, content: ASTDatabase.() -> Unit) : ASTDatabase {
+    return ASTDatabase(name).apply(content)
 }
 
-fun Database.schema(name : String, content : Schema.() -> Unit) : Schema {
-    return Schema(this, name).also { schemas[name] = it }.apply(content)
+fun ASTDatabase.schema(name : String, content : ASTSchema.() -> Unit) : ASTSchema {
+    return ASTSchema(this, name).also { schemas[name] = it }.apply(content)
 }
 
-fun Database.option(name : String, value : String) : Option {
+fun ASTDatabase.option(name : String, value : String) : Option {
     return Option(name, value).also { options[name] = it }
 }
 
-fun Schema.table(name : String, content : Table.() -> Unit) : Table {
-    return Table(this, name).also { tables[name] = it }.apply(content)
+fun ASTSchema.table(name : String, content : ASTTable.() -> Unit) : ASTTable {
+    return ASTTable(this, name).also { tables[name] = it }.apply(content)
 }
 
-fun Table.field(name : String, type : String, primaryKey: Boolean = false, nonNull : Boolean = true, unique : Boolean = false, default : Any? = null) : Field {
-    return Field(this, name, type, primaryKey, nonNull, unique, default).also {fields[name] = it }
+fun ASTTable.field(name : String, type : String, primaryKey: Boolean = false, nonNull : Boolean = true, unique : Boolean = false, default : Any? = null) : ASTField {
+    return ASTField(this, name, type, primaryKey, nonNull, unique, default).also {fields[name] = it }
 }
