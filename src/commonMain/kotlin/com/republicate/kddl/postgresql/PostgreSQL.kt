@@ -77,7 +77,7 @@ class PostgreSQLFormatter: Formatter {
                 val fkFields =  parent!!.getPrimaryKey().map {
                         field -> Field(tbl, field.name, field.type)
                 }.toSet()
-                val fk = ForeignKey(tbl, fkFields, parent, true, true)
+                val fk = ForeignKey(tbl, fkFields, parent, true, true, true)
                 ret.append(format(fk, indent)).append(EOL)
             }
 
@@ -94,7 +94,7 @@ class PostgreSQLFormatter: Formatter {
             tableName = "base_$tableName"
         }
 
-        ret.append("CREATE TABLE ${asm.schema.name}.$Q$tableName$Q (")
+        ret.append("CREATE TABLE $Q$tableName$Q (")
         var firstField = true
 
         for (field in asm.fields.values.filter { it.primaryKey }) {
@@ -201,10 +201,12 @@ class PostgreSQLFormatter: Formatter {
                     if (childFields.isNotEmpty()) {
                         asm.fields.values.forEach {
                             var nullType = when  {
+                                // CB TODO - redundant with types map below
                                 it.type.startsWith("varchar") -> "null::varchar"
                                 it.type.startsWith("enum") -> "null::enum_${camelToSnake(it.name)}"
                                 it.type == "float" -> "null::real"
                                 it.type == "double" -> "null::float"
+                                it.type == "int" -> "null::integer"
                                 else -> "null::${it.type}"
                             }
                             ret.append(",$nullType")
@@ -278,6 +280,7 @@ class PostgreSQLFormatter: Formatter {
 
     private val typeMap = mapOf(
         "datetime" to "timestamp",
+        "int" to "integer",
         "long" to "bigint",
         "float" to "real",
         "double" to "double precision"
@@ -291,13 +294,18 @@ class PostgreSQLFormatter: Formatter {
             else if (type.startsWith("enum(")) ret.append(" enum_${camelToSnake(name)}")
             else ret.append(" ${typeMap[type] ?: type}")
             if (nonNull) ret.append(" NOT NULL")
-            if (unique) ret.append(" UNIQUE")
+            // CB TODO - review 'unique' upstream calculation. A field should not be systematically
+            // be marked as unique because it is part of a multivalued primary key, for instance.
+            if (unique && !primaryKey) ret.append(" UNIQUE")
             when (default) {
                 null -> 0 // NOP
                 is Boolean -> ret.append(" DEFAULT $default")
                 is Number -> ret.append(" DEFAULT $default")
                 // is String -> ret.append("DEFAULT ${defaultMap[default] ?: default}")
-                is String -> ret.append(" DEFAULT '$default'")
+                is String -> {
+                    if (default.contains('(') && default.contains(')')) ret.append(" DEFAULT $default")
+                    else ret.append(" DEFAULT '$default'")
+                }
                 is Function<*> -> ret.append(" DEFAULT $default()")
                 is Function0<*> -> ret.append(" DEFAULT ${(default as Function0<String>).invoke()}")
                 else -> throw RuntimeException("Unhandled default value type: $default")

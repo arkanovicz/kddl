@@ -124,7 +124,7 @@ class Field(
         if (fk.fields.size != 1) return false
         val pk = fk.towards.getOrCreatePrimaryKey().first()
         if (name != pk.name) return false
-        if (type !in listOf("integer", pk.type)) return false
+        if (type !in listOf("int", "integer", "long", pk.type)) return false
         return true
     }
 
@@ -171,10 +171,10 @@ class ForeignKey(
         if (fields.size != 1) return false
         val fk = fields.first()
         val pk = towards.getOrCreatePrimaryKey().first()
-        if (fk.type !in setOf(pk.type, "integer")) return true
-        if (fk.default != null) return true
-        if (fk.name != pk.name) return true
-        return false
+        if (fk.default != null) return false
+        if (fk.name != pk.name && fk.name != "${pk.table.name.decapitalize()}${pk.name.capitalize()}") return false
+        if (pk.type != fk.type || pk.type == "serial" && fk.type !in setOf("int", "integer", "long")) return false
+        return true
     }
 }
 

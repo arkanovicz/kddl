@@ -28,6 +28,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
             schema.tables[table.name] = table
             for (astField in astTable.findField()) {
                 // field
+                val fieldName = astField.name!!.text!!
                 val reference = database.resolveTable(schema, astField.reference)
                 val pk = astField.pk != null
                 val nonNull = astField.optional == null
@@ -47,14 +48,13 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
                         }
                     }
                     val type = astField.findType() ?: throw SemanticException("type not found for field: ${astField.text}")
-                    Field(table, astField.name!!.text!!, type.text, pk, nonNull, unique, default)
+                    Field(table, fieldName, type.text, pk, nonNull, unique, default)
                 } else {
                     // link field
-                    val fieldName = astField.name!!.text!!
                     val refPk = reference.getOrCreatePrimaryKey()
                     val cascade = astField.CASCADE() != null
                     val direction = astField.findDirection()?.text ?: ""
-                    val fieldType = reference.getPrimaryKey().first().type.let { if (it == "serial") "integer" else it }
+                    val fieldType = refPk.first().type.let { if (it == "serial") "int" else it }
                     Field(table, fieldName, fieldType, pk, nonNull, unique)
                         .also {
                             val fk = ForeignKey(table, setOf(it), reference, nonNull, unique, cascade, direction)
@@ -69,13 +69,15 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
             val right = database.resolveTable(schema, astLink.right) ?: throw SemanticException("right table not found") // should not happen
             val leftMult = astLink.left_mult != null || astLink.left_single == null
             val rightMult = astLink.right_mult != null || astLink.right_single == null
+            val leftNoNull = astLink.left_optional == null
+            val rightNoNull = astLink.right_optional == null
             if (leftMult && rightMult) {
                 val linkTable = Table(left.schema, "${left.name}_${right.name}")
                 left.schema.tables[linkTable.name] = linkTable
                 arrayOf(left, right).forEach {
                     val pk = it.getOrCreatePrimaryKey()
                     val fkFields = pk.map {
-                        val fkField = Field(linkTable, it.name, it.type.let { if (it == "serial") "long" else it}, false, true, false)
+                        val fkField = Field(linkTable, it.name, it.type.let { if (it == "serial") "int" else it}, false, true, false)
                         linkTable.fields[it.name] = fkField
                         fkField
                     }.toSet()
@@ -86,12 +88,20 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : Database {
             } else if (leftMult || rightMult) {
                 val pkTable = if (leftMult) right else left
                 val fkTable = if (leftMult) left else right
+                val nonNull = if (leftMult) rightNoNull else leftNoNull
                 val pk = pkTable.getOrCreatePrimaryKey()
                 val fkFields = pk.map {
-                    val fkField = fkTable.fields[it.name]
-                        ?: Field(fkTable, it.name, it.type.let { if (it == "serial") "long" else it}, false, true, false)
-                            .also { fkTable.fields[it.name] = it }
-                    if (fkField.type != it.type && it.type == "serial" && fkField.type !in arrayOf("integer", "long"))
+                    var fkField = fkTable.getMaybeInheritedField(it.name)
+                    if (fkField == null || fkField.primaryKey) {
+                        // need to create an implicit field
+                        val fieldName =
+                            if (fkField == null) it.name
+                            else "${pkTable.name.decapitalize()}${it.name.capitalize()}"
+                        val type = it.type.let { if (it == "serial") "int" else it}
+                        fkField = Field(fkTable, fieldName, type, false, nonNull, false)
+                        fkTable.fields[fieldName] = fkField
+                    }
+                    if (fkField.type != it.type && it.type == "serial" && fkField.type !in arrayOf("int", "long"))
                         throw SemanticException("link ${fkTable.name} -> ${pkTable.name}: incompatible fk/pk field types")
                     fkField
                 }.toSet()
