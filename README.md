@@ -155,7 +155,7 @@ $ ./gradlew build
 
 - more options for configuration
 - document library usage
-- plugins for gradle [done in skorm] / maven / kobalt
+- plugins for gradle [done in skorm] / maven
 - db versionning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
 - custom types
 - more tests (for instance: inheritance from another schema's table)
@@ -163,6 +163,7 @@ $ ./gradlew build
 - kddl files inclusions
 - add implicit identifiers at start
 - support enum(foo,bar) (without quotes) or juste foo|bar
+- support merging of relations like: Service *--* Carrier --* User
 
 ## limitations
 
