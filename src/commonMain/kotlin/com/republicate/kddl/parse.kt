@@ -67,8 +67,8 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
         for (astLink in astSchema.findLink()) {
             val left = database.resolveTable(schema, astLink.left) ?: throw SemanticException("left table not found") // should not happen
             val right = database.resolveTable(schema, astLink.right) ?: throw SemanticException("right table not found") // should not happen
-            val leftMult = astLink.left_mult != null // || astLink.left_single == null
-            val rightMult = astLink.right_mult != null // || astLink.right_single == null
+            val leftMult = astLink.left_mult != null || astLink.right_single != null // || astLink.left_single == null
+            val rightMult = astLink.right_mult != null || astLink.left_single != null // || astLink.right_single == null
             val leftNoNull = astLink.left_optional == null
             val rightNoNull = astLink.right_optional == null
             if (leftMult && rightMult) {
