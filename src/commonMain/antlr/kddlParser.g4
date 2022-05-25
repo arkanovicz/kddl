@@ -32,5 +32,6 @@ default: EQ expression ;
 expression: NULL | boolean | number | STRING | function ;
 boolean: TRUE | FALSE ;
 number: MN? INTEGER ( DOT frac=INTEGER )? ;
-function: name=LABEL LP (arg=.)*? RP;
+// function: name=LABEL LP (arg=[^\\)]*)? RP; Parsing problem - CB TODO
+function: name=LABEL LP RP;
 qualified: ( ref_schema=LABEL DOT )? name=LABEL ;
