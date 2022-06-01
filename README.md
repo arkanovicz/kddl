@@ -60,8 +60,8 @@ database geo {
 
     table link {
       distance integer
-      src_id -> zone    // mandatory foreign key field
-      dst_id ---> zone  // arrows can be as long as you want
+      src_id --> zone    // mandatory foreign key field
+      dst_id --> zone
       hub_id --> zone? (down)   // nullable foreign key field
     }
 
@@ -85,7 +85,7 @@ database geo {
     }
 
     location *--> contact    // will generate the implicit "contact_id serial" primary key in contact
-    location *..> infra.zone // foreign key referencing a table in another schema
+    location *--> infra.zone // foreign key referencing a table in another schema
 
   }
 
