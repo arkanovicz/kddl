@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.republicate.kddl"
-version = "0.6"
+version = "0.6.1"
 
 repositories {
     mavenCentral()
@@ -80,7 +80,7 @@ kotlin {
         val nativeTest by getting
         val jvmMain by getting {
             dependencies {
-                runtimeOnly("org.postgresql:postgresql:42.3.1")
+                runtimeOnly("org.postgresql:postgresql:42.4.0")
             }
         }
         val jvmTest by getting {
