@@ -1,6 +1,7 @@
 package com.republicate.kddl
 
 import com.republicate.kddl.Utils.getFile
+import com.republicate.kddl.hypersql.HyperSQLFormatter
 import com.republicate.kddl.plantuml.PlantUMLFormatter
 import com.republicate.kddl.postgresql.PostgreSQLFormatter
 import kotlinx.cli.ArgParser
@@ -12,7 +13,8 @@ val argParser = ArgParser("kddl")
 enum class Format {
     KDDL,
     PLANTUML,
-    POSTGRESQL
+    POSTGRESQL,
+    HYPERSQL
 }
 
 fun main(args: Array<String>) {
@@ -35,6 +37,7 @@ fun main(args: Array<String>) {
         Format.KDDL -> KDDLFormatter()
         Format.PLANTUML -> PlantUMLFormatter()
         Format.POSTGRESQL -> PostgreSQLFormatter()
+        Format.HYPERSQL -> HyperSQLFormatter()
         else -> throw IllegalArgumentException("invalid format")
     }
     val ret = formatter.format(tree)
