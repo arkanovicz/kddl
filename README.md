@@ -16,10 +16,12 @@ kddl [OPTIONS] > [output_file]
 
 Options:
 ```
-  --input, -i  -> mandatory; input file or JDBC URL (with credentials)
-  --format, -f -> mandatory; output format { Value should be one of [kddl, plantuml, postgresql] }
-  --driver, -d -> optional; jdbc driver, needed when input is a JDBC URL { String }
-  --help, -h   -> Usage info 
+  -i, --input     -> mandatory; input file or JDBC URL (with credentials)
+  -f, --format    -> mandatory; output format (value should be one of [kddl, plantuml, postgresql])
+  -d, --driver    -> jdbc driver, needed when input is a JDBC URL (classname, must be present in the classpath)
+  -q, --quoted    -> quoted identifiers
+  -u, --uppercase -> uppercase identifiers
+  -h, --help      -> Usage info
 
 ```
 

@@ -4,7 +4,7 @@ class SemanticException(message: String? = null, cause: Throwable? = null) : Exc
 
 interface Formatter {
     companion object {
-        val EOL: String = "\n"
+        const val EOL: String = "\n"
     }
     fun format(asm: ASTDatabase, indent: String = ""): String
     fun format(asm: ASTSchema, indent: String): String

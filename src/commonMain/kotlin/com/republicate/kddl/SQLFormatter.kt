@@ -1,16 +1,24 @@
 package com.republicate.kddl
 
-abstract class SQLFormatter: Formatter {
+import com.republicate.kddl.Formatter.Companion.EOL
+
+abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Formatter {
 
     open val supportsEnums = false
     open val supportsInheritance = false
+    open val scopedObjectNames = false
     open fun defineEnum(field: ASTField) = ""
     open fun defineInheritedView(table: ASTTable) = ""
     open fun setSchema(schema: String) = "SET SCHEMA $schema$END"
 
-    val END = ";${Formatter.EOL}"
-    val Q = "\""
+    val END = ";${EOL}"
+    val Q = if (quoted) "\"" else ""
     val upper = Regex("[A-Z]")
+    val transform: (String)->String = if (uppercase) {
+        { camelToSnake(it).uppercase() }
+    } else {
+        { camelToSnake(it) }
+    }
 
     private val typeMap = mapOf(
         "datetime" to "timestamp",
@@ -23,7 +31,7 @@ abstract class SQLFormatter: Formatter {
     open fun mapType(type: String) = typeMap[type]
 
     // CB TODO - make it configurable
-    fun camelToSnake(camel : String) : String {
+    private fun camelToSnake(camel : String) : String {
         val ret = StringBuilder()
         var pos = 0
         upper.findAll(camel).forEach {
@@ -38,20 +46,20 @@ abstract class SQLFormatter: Formatter {
     }
 
     override fun format(asm: ASTDatabase, indent: String): String {
-        val ret = StringBuilder("-- database ${asm.name}${Formatter.EOL}")
+        val ret = StringBuilder("-- database ${asm.name}${EOL}")
         // TODO postgresql options
         ret.append(
             asm.schemas.map {
                 format(it.value, indent)
-            }.joinToString(separator = Formatter.EOL)
+            }.joinToString(separator = EOL)
         )
         return ret.toString()
     }
 
     override fun format(asm: ASTSchema, indent: String): String {
         val ret = StringBuilder()
-        val schemaName = camelToSnake(asm.name)
-        ret.append("${Formatter.EOL}-- schema $schemaName${Formatter.EOL}")
+        val schemaName = transform(asm.name)
+        ret.append("${EOL}-- schema $schemaName${EOL}")
         ret.append("DROP SCHEMA IF EXISTS $schemaName CASCADE$END")
         ret.append("CREATE SCHEMA $schemaName")
         // incorrect
@@ -67,13 +75,13 @@ abstract class SQLFormatter: Formatter {
                     it.type.startsWith("enum(")
                 }.map {
                     defineEnum(it)
-                }.joinToString(separator = Formatter.EOL))
+                }.joinToString(separator = EOL))
         }
-        ret.append(Formatter.EOL)
+        ret.append(EOL)
         ret.append(
             asm.tables.values.map {
                 format(it, indent)
-            }.joinToString(separator = Formatter.EOL)
+            }.joinToString(separator = EOL)
         )
         asm.tables.values.flatMap{ it.foreignKeys }/*.filter {
             !it.isFieldLink()
@@ -92,7 +100,7 @@ abstract class SQLFormatter: Formatter {
                             field -> ASTField(tbl, field.name, field.type)
                     }.toSet()
                     val fk = ASTForeignKey(tbl, fkFields, parent, true, true, true)
-                    ret.append(format(fk, indent)).append(Formatter.EOL)
+                    ret.append(format(fk, indent)).append(EOL)
                 }
         }
         return ret.toString()
@@ -100,7 +108,7 @@ abstract class SQLFormatter: Formatter {
 
     override fun format(asm: ASTTable, indent: String): String {
         val ret = StringBuilder()
-        var tableName = camelToSnake(asm.name)
+        var tableName = transform(asm.name)
         var viewName : String? = null;
 
         if (asm.parent != null) {
@@ -113,7 +121,7 @@ abstract class SQLFormatter: Formatter {
 
         for (field in asm.fields.values.filter { it.primaryKey }) {
             if (firstField) firstField = false else ret.append(",")
-            ret.append(Formatter.EOL)
+            ret.append(EOL)
             ret.append(format(field, "  "))
         }
 
@@ -121,14 +129,14 @@ abstract class SQLFormatter: Formatter {
         if (asm.parent != null) {
             for (field in asm.parent.getPrimaryKey()) {
                 if (firstField) firstField = false else ret.append(",")
-                ret.append(Formatter.EOL)
+                ret.append(EOL)
                 ret.append(format(field, "  "))
             }
         }
 
         for (field in asm.fields.values.filter { !it.primaryKey }) {
             if (firstField) firstField = false else ret.append(",")
-            ret.append(Formatter.EOL)
+            ret.append(EOL)
             ret.append(format(field, "  "))
         }
 
@@ -136,27 +144,27 @@ abstract class SQLFormatter: Formatter {
         if (asm.children.isNotEmpty()) {
             if (!supportsInheritance) throw Error("inheritance not supported")
             if (firstField) firstField = false else ret.append(",")
-            ret.append(Formatter.EOL)
+            ret.append(EOL)
             ret.append("  class varchar(30)")
         }
 
         if (asm.parent == null) {
-            val pkFields = asm.getPrimaryKey().map { camelToSnake(it.name) }.joinToString(",")
+            val pkFields = asm.getPrimaryKey().map { transform(it.name) }.joinToString(",")
             if (pkFields.isNotEmpty()) {
                 if (firstField) firstField = false else ret.append(",")
-                ret.append(Formatter.EOL)
+                ret.append(EOL)
                 ret.append("  PRIMARY KEY ($pkFields)")
             }
         } else {
-            val pkFields = asm.parent.getPrimaryKey().map { camelToSnake(it.name) }.joinToString(",")
+            val pkFields = asm.parent.getPrimaryKey().map { transform(it.name) }.joinToString(",")
             if (pkFields.isNotEmpty()) {
                 if (firstField) firstField = false else ret.append(",")
-                ret.append(Formatter.EOL)
+                ret.append(EOL)
                 ret.append("  PRIMARY KEY ($pkFields)")
             }
         }
 
-        ret.append("${Formatter.EOL})$END${Formatter.EOL}")
+        ret.append("${EOL})$END${EOL}")
 
         if (asm.parent != null) {
             ret.append(defineInheritedView(asm))
@@ -168,9 +176,9 @@ abstract class SQLFormatter: Formatter {
     override fun format(asm: ASTField, indent: String): String {
         val ret = StringBuilder(indent)
         asm.apply {
-            ret.append(camelToSnake(name))
+            ret.append(transform(name))
             if (type.isEmpty()) throw RuntimeException("Missing type for ${asm.table.schema.name}.${asm.table.name}.${asm.name}")
-            else if (type.startsWith("enum(")) ret.append(" enum_${camelToSnake(name)}")
+            else if (type.startsWith("enum(")) ret.append(" enum_${transform(name)}")
             else ret.append(" ${mapType(type) ?: type}")
             if (nonNull) ret.append(" NOT NULL")
             // CB TODO - review 'unique' upstream calculation. A field should not be systematically
@@ -197,20 +205,23 @@ abstract class SQLFormatter: Formatter {
         val src = asm.from
         val ret = StringBuilder()
         val srcName =
-            if (src.parent == null) "$Q${camelToSnake(src.name)}$Q"
-            else "${Q}base_${camelToSnake(src.name)}$Q"
+            if (src.parent == null) "$Q${transform(src.name)}$Q"
+            else "${Q}base_${transform(src.name)}$Q"
+        val fkName =
+            if (scopedObjectNames) "$Q${transform(asm.fields.first().name.removeSuffix(suffix))}$Q"
+            else "$Q${transform(src.name)}_${transform(asm.fields.first().name.removeSuffix(suffix))}_fk$Q"
         ret.append("ALTER TABLE $srcName")
-        ret.append(" ADD CONSTRAINT $Q${camelToSnake(asm.fields.first().name.removeSuffix(suffix))}$Q")
-        ret.append(" FOREIGN KEY (${camelToSnake(asm.fields.map{it.name}.joinToString(","))})")
+        ret.append(" ADD CONSTRAINT $fkName")
+        ret.append(" FOREIGN KEY (${transform(asm.fields.map{it.name}.joinToString(","))})")
         ret.append(" REFERENCES ")
 
         if (asm.towards.schema.name != src.schema.name) {
-            ret.append("$Q${camelToSnake(asm.towards.schema.name)}$Q.")
+            ret.append("$Q${transform(asm.towards.schema.name)}$Q.")
         }
         val dstName =
-            if (asm.towards.parent == null) "$Q${camelToSnake(asm.towards.name)}$Q"
-            else "${Q}base_${camelToSnake(asm.towards.name)}$Q"
-        ret.append("$dstName (${camelToSnake(asm.towards.getOrCreatePrimaryKey().map{it.name}.joinToString(","))})")
+            if (asm.towards.parent == null) "$Q${transform(asm.towards.name)}$Q"
+            else "${Q}base_${transform(asm.towards.name)}$Q"
+        ret.append("$dstName (${transform(asm.towards.getOrCreatePrimaryKey().map{it.name}.joinToString(","))})")
         if (asm.cascade) {
             ret.append(" ON DELETE CASCADE")
         }
