@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.republicate.kddl"
-version = "0.7"
+version = "0.7.1"
 
 repositories {
     mavenCentral()
