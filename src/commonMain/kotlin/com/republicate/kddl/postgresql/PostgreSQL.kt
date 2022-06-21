@@ -10,7 +10,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
     override val scopedObjectNames = true
 
     override fun defineEnum(field: ASTField) =
-        "CREATE TYPE ${transform("Enum${field.name}")} AS ENUM ${field.type.substring(4)};${EOL}" +
+        "CREATE TYPE ${transform("enum_${field.name}")} AS ENUM ${field.type.substring(4)};${EOL}" +
         "CREATE CAST (varchar AS enum_${transform(field.name)}) WITH INOUT AS IMPLICIT;"
 
     override fun defineInheritedView(table: ASTTable): String {
