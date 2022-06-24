@@ -133,7 +133,8 @@ You'll need to have `gradle` installed.
 You first need to clone this repository and launch the `install.sh` script, which will build and install the kddl library in your local maven repository.
 
 ```shell
-git clone git@gitlab.renegat.net:claude/kddl.git
+git clone https://github.com/arkanovicz/kddl.git
+cd kddl
 ./install.sh
 ```
 
