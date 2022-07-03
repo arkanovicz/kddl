@@ -176,7 +176,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
         asm.apply {
             ret.append(transform(name))
             if (type.isEmpty()) throw RuntimeException("Missing type for ${asm.table.schema.name}.${asm.table.name}.${asm.name}")
-            else if (type.startsWith("enum(")) ret.append(" enum_${transform(name)}")
+            else if (type.startsWith("enum(")) ret.append(" enum_${transform(name).removeSurrounding(Q)}")
             else ret.append(" ${mapType(type) ?: type}")
             if (nonNull) ret.append(" NOT NULL")
             // CB TODO - review 'unique' upstream calculation. A field should not be systematically
