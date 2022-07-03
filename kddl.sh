@@ -31,6 +31,14 @@ do
             FORMAT="$2"
             shift ; shift
             ;;
+        -q|--quoted)
+            QUOTED=1
+            shift;
+            ;;
+        -u|--uppercase)
+            UPPERCASE=1
+            shift;
+            ;;
         -h|--help|*)
             HELP=yes
             shift
@@ -55,6 +63,8 @@ if [[ -n "$INPUT" ]]; then
     else ARGS="$ARGS -i '$PWD/$INPUT'"
     fi
 fi
+if [[ -n "$QUOTED" ]]; then ARGS="$ARGS -q"; fi
+if [[ -n "$UPPERCASE" ]]; then ARGS="$ARGS -u"; fi
 if [[ -z "$ARGS" ]]; then ARGS="-h"; fi
 
 pushd . > /dev/null

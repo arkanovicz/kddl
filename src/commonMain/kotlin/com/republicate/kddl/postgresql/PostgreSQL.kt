@@ -11,19 +11,20 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
 
     override fun defineEnum(field: ASTField) =
         "CREATE TYPE ${transform("enum_${field.name}")} AS ENUM ${field.type.substring(4)};${EOL}" +
-        "CREATE CAST (varchar AS enum_${transform(field.name)}) WITH INOUT AS IMPLICIT;"
+        "CREATE CAST (varchar AS ${transform("enum_${field.name}")}) WITH INOUT AS IMPLICIT;"
 
     override fun defineInheritedView(table: ASTTable): String {
         val ret = StringBuilder()
         val parent = table.parent!!
         val viewName = transform(table.name)
-        val tableName = "base_${viewName}"
+        val baseName = viewName.removeSurrounding(Q)
+        val tableName = "base_${baseName}"
 
         // View
-        val parentName = "$Q${transform(table.parent.name)}$Q"
+        val parentName = transform(table.parent.name)
         val qualifiedParentName =
             if (table.schema == table.parent.schema) parentName
-            else "$Q${parent.schema.name}$Q.$parentName"
+            else "${transform(parent.schema.name)}.$parentName"
         ret.append("CREATE VIEW $viewName AS${EOL}  SELECT${EOL}    ")
         val parentPkFields = parent.getPrimaryKey().map {
             "$parentName.${transform(it.name)}"
@@ -37,7 +38,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
             ret.append(",")
             ret.append(parentNonPKFields)
         }
-        ret.append(",class")
+        ret.append(",${Q}class$Q")
         val childFields = table.fields.values
             .map { transform(it.name) }
             .joinToString(",")
@@ -46,9 +47,9 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
             ret.append("    $childFields")
         }
         ret.append(EOL)
-        ret.append("  FROM $Q$tableName$Q JOIN $qualifiedParentName ON ")
+        ret.append("  FROM $tableName JOIN $qualifiedParentName ON ")
         val join = parent.getPrimaryKey().map {
-            "$parentName.${it.name} = $Q$tableName$Q.${it.name}"
+            "$parentName.${it.name} = $tableName.${it.name}"
         }.joinToString(" AND ")
         ret.append(join)
         ret.append("$END${EOL}")
@@ -62,22 +63,22 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
 
             if (pk.type == "serial") {
 
-                var seqName = "${transform(parent.name)}_${pkName}_seq"
-                if (table.schema != parent.schema) seqName = "$Q${parent.schema.name}$Q.$seqName"
+                var seqName = "${transform(parent.name)}_${pkName.removeSurrounding(Q)}_seq"
+                if (table.schema != parent.schema) seqName = "${transform(parent.schema.name)}.$seqName"
 
-                ret.append("CREATE RULE ${Q}insert_${viewName}$Q AS ON INSERT TO $Q$viewName$Q DO INSTEAD (${EOL}")
+                ret.append("CREATE RULE insert_${baseName} AS ON INSERT TO $viewName DO INSTEAD (${EOL}")
 
-                ret.append("  INSERT INTO $qualifiedParentName ($pkName, $parentNonPKFields,class)${EOL}    VALUES (")
+                ret.append("  INSERT INTO $qualifiedParentName ($pkName, $parentNonPKFields,${Q}class$Q)${EOL}    VALUES (")
                 ret.append("     COALESCE(NEW.$pkName,NEXTVAL('$seqName')),")
                 var parentValues = parent.fields.values.filter { !it.primaryKey }.map { "NEW.${transform(it.name)}" }.joinToString(",")
-                ret.append("$parentValues,'$viewName')${EOL}")
+                ret.append("$parentValues,'$baseName')${EOL}")
                 ret.append("  RETURNING $qualifiedParentName.*")
                 if (childFields.isNotEmpty()) {
                     table.fields.values.forEach {
                         var nullType = when  {
                             // CB TODO - redundant with types map below
                             it.type.startsWith("varchar") -> "null::varchar"
-                            it.type.startsWith("enum") -> "null::enum_${transform(it.name)}"
+                            it.type.startsWith("enum") -> "null::enum_${transform(it.name).removeSurrounding(Q)}"
                             it.type == "float" -> "null::real"
                             it.type == "double" -> "null::float"
                             it.type == "int" -> "null::integer"
@@ -90,7 +91,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
 
                 ret.append("  SELECT SETVAL('$seqName', (SELECT MAX($pkName) FROM $qualifiedParentName)) $pkName$END")
 
-                ret.append("  INSERT INTO $Q$tableName$Q ($pkName")
+                ret.append("  INSERT INTO $tableName ($pkName")
                 if (childFields.isNotEmpty()) {
                     ret.append(",$childFields")
                 }
@@ -106,11 +107,11 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
 
             } else {
 
-                ret.append("CREATE RULE ${Q}insert_${viewName}$Q AS ON INSERT TO $Q$viewName$Q DO INSTEAD (${EOL}")
-                ret.append("  INSERT INTO $qualifiedParentName ($pkName,$parentNonPKFields,class)${EOL}    VALUES (")
+                ret.append("CREATE RULE insert_${baseName} AS ON INSERT TO $viewName DO INSTEAD (${EOL}")
+                ret.append("  INSERT INTO $qualifiedParentName ($pkName,$parentNonPKFields,${Q}class$Q)${EOL}    VALUES (")
                 val parentValues = parent.fields.values.map { "NEW.${transform(it.name)}" }.joinToString(",")
                 ret.append("$parentValues,'$viewName')$END")
-                ret.append("  INSERT INTO $Q$tableName$Q ($pkName")
+                ret.append("  INSERT INTO $tableName ($pkName")
                 if (childFields.isNotEmpty()) {
                     ret.append(",$childFields")
                 }
@@ -124,7 +125,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
                 ret.append(")$END${EOL}")
             }
 
-            ret.append("CREATE RULE ${Q}update_${viewName}$Q AS ON UPDATE TO $Q$viewName$Q DO INSTEAD (${EOL}")
+            ret.append("CREATE RULE update_${baseName} AS ON UPDATE TO $viewName DO INSTEAD (${EOL}")
             ret.append("  UPDATE $qualifiedParentName${EOL}")
             ret.append("    SET ")
             val updateParent = parent.fields.values.filter { !it.primaryKey }
@@ -136,13 +137,13 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
                 .map { "${transform(it.name)} = NEW.${transform(it.name)}" }
                 .joinToString(",")
             if (updateChild.isNotEmpty()) {
-                ret.append("  UPDATE $Q$tableName$Q${EOL}")
+                ret.append("  UPDATE $tableName${EOL}")
                 ret.append("    SET ")
                 ret.append("$updateChild${EOL}    WHERE $pkName = NEW.$pkName$END")
             }
             ret.append(")$END${EOL}")
 
-            ret.append("CREATE RULE ${Q}delete_${viewName}$Q AS ON DELETE TO $Q$viewName$Q DO INSTEAD (${EOL}")
+            ret.append("CREATE RULE delete_${baseName} AS ON DELETE TO $viewName DO INSTEAD (${EOL}")
             // rely on cascade
             ret.append("  DELETE FROM $qualifiedParentName WHERE $pkName = OLD.$pkName$END")
             ret.append(")$END${EOL}")

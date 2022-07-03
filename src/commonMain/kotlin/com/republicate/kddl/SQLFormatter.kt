@@ -11,14 +11,12 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
     open fun defineInheritedView(table: ASTTable) = ""
     open fun setSchema(schema: String) = "SET SCHEMA $schema$END"
 
-    val END = ";${EOL}"
-    val Q = if (quoted) "\"" else ""
+    protected open val END = ";${EOL}"
+    protected open val Q = if (quoted) "\"" else ""
     val upper = Regex("[A-Z]")
-    val transform: (String)->String = if (uppercase) {
-        { camelToSnake(it).uppercase() }
-    } else {
-        { camelToSnake(it) }
-    }
+    open fun transform(str: String) =
+        if (uppercase) "${Q}${camelToSnake(str).uppercase()}$Q"
+        else "${Q}${camelToSnake(str)}$Q"
 
     private val typeMap = mapOf(
         "datetime" to "timestamp",
@@ -116,7 +114,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             tableName = "base_$tableName"
         }
 
-        ret.append("CREATE TABLE $Q$tableName$Q (")
+        ret.append("CREATE TABLE $tableName (")
         var firstField = true
 
         for (field in asm.fields.values.filter { it.primaryKey }) {
@@ -205,11 +203,11 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
         val src = asm.from
         val ret = StringBuilder()
         val srcName =
-            if (src.parent == null) "$Q${transform(src.name)}$Q"
-            else "${Q}base_${transform(src.name)}$Q"
+            if (src.parent == null) transform(src.name)
+            else "base_${transform(src.name).removeSurrounding(Q)}"
         val fkName =
-            if (scopedObjectNames) "$Q${transform(asm.fields.first().name.removeSuffix(suffix))}$Q"
-            else "$Q${transform(src.name)}_${transform(asm.fields.first().name.removeSuffix(suffix))}_fk$Q"
+            if (scopedObjectNames) transform(asm.fields.first().name.removeSuffix(suffix))
+            else "$Q${transform(src.name).removeSurrounding(Q)}_${transform(asm.fields.first().name.removeSuffix(suffix)).removeSurrounding(Q)}_fk$Q"
         ret.append("ALTER TABLE $srcName")
         ret.append(" ADD CONSTRAINT $fkName")
         ret.append(" FOREIGN KEY (${transform(asm.fields.map{it.name}.joinToString(","))})")
@@ -219,8 +217,8 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             ret.append("$Q${transform(asm.towards.schema.name)}$Q.")
         }
         val dstName =
-            if (asm.towards.parent == null) "$Q${transform(asm.towards.name)}$Q"
-            else "${Q}base_${transform(asm.towards.name)}$Q"
+            if (asm.towards.parent == null) transform(asm.towards.name)
+            else "${Q}base_${transform(asm.towards.name).removeSurrounding(Q)}$Q"
         ret.append("$dstName (${transform(asm.towards.getOrCreatePrimaryKey().map{it.name}.joinToString(","))})")
         if (asm.cascade) {
             ret.append(" ON DELETE CASCADE")
@@ -228,5 +226,4 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
         ret.append("$END")
         return ret.toString()
     }
-
 }
