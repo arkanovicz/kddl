@@ -25,6 +25,7 @@ type: BOOLEAN
     | CHAR ( LP width=INTEGER RP )?
     | VARCHAR ( LP ( width=INTEGER )? RP )?
     | TEXT
+    | BLOB
     | ENUM LP value=STRING ( CM? value=STRING )* RP
     | JSON
     | JSONB ;

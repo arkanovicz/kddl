@@ -153,5 +153,16 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
         return ret.toString()
     }
 
+    private val typeMap = mapOf(
+        "datetime" to "timestamp",
+        "int" to "integer",
+        "long" to "bigint",
+        "float" to "real",
+        "double" to "double precision",
+        "blob" to "bytea"
+    )
+
+    override fun mapType(type: String) = typeMap[type]
+
     override fun setSchema(schema: String) = "SET search_path TO $schema$END"
 }

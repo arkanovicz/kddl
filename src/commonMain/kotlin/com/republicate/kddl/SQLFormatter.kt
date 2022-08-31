@@ -19,7 +19,6 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
         else "${Q}${camelToSnake(str)}$Q"
 
     private val typeMap = mapOf(
-        "datetime" to "timestamp",
         "int" to "integer",
         "long" to "bigint",
         "float" to "real",
