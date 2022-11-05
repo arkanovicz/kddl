@@ -47,7 +47,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
             ret.append("    $childFields")
         }
         ret.append(EOL)
-        ret.append("  FROM $tableName JOIN $qualifiedParentName ON ")
+        ret.append("  FROM ${transform(tableName)} JOIN $qualifiedParentName ON ")
         val join = parent.getPrimaryKey().map {
             "$parentName.${it.name} = $tableName.${it.name}"
         }.joinToString(" AND ")
@@ -63,7 +63,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
 
             if (pk.type == "serial") {
 
-                var seqName = "${transform(parent.name)}_${pkName.removeSurrounding(Q)}_seq"
+                var seqName = "${parent.name}_${pkName.removeSurrounding(Q)}_seq"
                 if (table.schema != parent.schema) seqName = "${transform(parent.schema.name)}.$seqName"
 
                 ret.append("CREATE RULE insert_${baseName} AS ON INSERT TO $viewName DO INSTEAD (${EOL}")

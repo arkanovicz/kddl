@@ -70,6 +70,8 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
                     it.fields.values
                 }.filter {
                     it.type.startsWith("enum(")
+                }.distinctBy {
+                    it.name
                 }.map {
                     defineEnum(it)
                 }.joinToString(separator = EOL))
@@ -110,7 +112,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
 
         if (asm.parent != null) {
             if (!supportsInheritance) throw Error("inheritance not supported")
-            tableName = "base_$tableName"
+            tableName = transform("base_${asm.name}")
         }
 
         ret.append("CREATE TABLE $tableName (")
@@ -209,16 +211,24 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             else "$Q${transform(src.name).removeSurrounding(Q)}_${transform(asm.fields.first().name.removeSuffix(suffix)).removeSurrounding(Q)}_fk$Q"
         ret.append("ALTER TABLE $srcName")
         ret.append(" ADD CONSTRAINT $fkName")
-        ret.append(" FOREIGN KEY (${transform(asm.fields.map{it.name}.joinToString(","))})")
+        ret.append(" FOREIGN KEY (${
+            asm.fields.map {
+                transform(it.name)
+            }.joinToString(",")
+        })")
         ret.append(" REFERENCES ")
 
         if (asm.towards.schema.name != src.schema.name) {
-            ret.append("$Q${transform(asm.towards.schema.name)}$Q.")
+            ret.append("${transform(asm.towards.schema.name)}.")
         }
         val dstName =
             if (asm.towards.parent == null) transform(asm.towards.name)
             else "${Q}base_${transform(asm.towards.name).removeSurrounding(Q)}$Q"
-        ret.append("$dstName (${transform(asm.towards.getOrCreatePrimaryKey().map{it.name}.joinToString(","))})")
+        ret.append("$dstName (${
+            asm.towards.getOrCreatePrimaryKey().map {
+                transform(it.name)
+            }.joinToString(",")
+        })")
         if (asm.cascade) {
             ret.append(" ON DELETE CASCADE")
         }
