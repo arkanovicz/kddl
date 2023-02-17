@@ -45,10 +45,7 @@ fun guessDatabaseName(url: String): String {
     if (slash == -1) slash = url.lastIndexOf(':', qm)
     if (slash == -1) return "unknown"
     val match = Regex("\\w+").find(url.substring(slash + 1, qm))
-    return when(match) {
-        null -> "unknown"
-        else -> match.value
-    }
+    return match?.value?.let { if (it.isEmpty()) null else it } ?: "unknown"
 }
 
 class ResultSetIterator(val rs: ResultSet): Iterator<ResultSet> {
@@ -79,6 +76,12 @@ class ReverseEngineer(val url: String) {
     private val vendorFilter = ReverseFilter.getReverseFilter(metadata)
 
     fun process(): ASTDatabase {
+
+        with(metadata.catalogs) {
+            println("@@@@ ${asSequence().joinToString { it.getString("TABLE_CAT")}}")
+            close()
+        }
+
         return ASTDatabase(catalog).also {
             reverseDatabase(it)
         }
@@ -86,7 +89,7 @@ class ReverseEngineer(val url: String) {
 
     fun reverseDatabase(database: ASTDatabase) {
         schemas {
-            val schema = ASTSchema(database, it.getString("TABLE_SCHEM"))
+            val schema = ASTSchema(database, it.getString("TABLE_CAT"))
             database.schemas[schema.name] = schema
             reverseSchema(schema)
         }
@@ -151,7 +154,7 @@ class ReverseEngineer(val url: String) {
         }.forEach { table ->
             val fks = mutableMapOf<String, Triple<ASTTable, MutableList<ASTField>, Boolean>>()
             foreignKeys(table.schema.name, table.name) {
-                val pkSchema = it.getString("PKTABLE_SCHEM")
+                val pkSchema = it.getString("PKTABLE_CAT")
                 val pkTable = it.getString("PKTABLE_NAME")
                 val targetTable = database.schemas[pkSchema]?.tables?.get(pkTable) ?: throw SQLException("could not find table ${pkSchema}.${pkTable}")
                 val fkName = it.getString("FK_NAME") ?: it.getString("PK_NAME") ?: targetTable.name
@@ -178,15 +181,26 @@ class ReverseEngineer(val url: String) {
         return DriverManager.getConnection(url)
     }
 
+    // generic postgres version
+    /*
     private fun schemas(op: (ResultSet) -> Unit) = with(metadata.schemas) {
         asSequence().filter {
             it.getString("TABLE_SCHEM") !in arrayOf("information_schema", "pg_catalog")
         }.forEach(op)
         close()
     }
+     */
+
+    // temporary specific mysql version
+    private fun schemas(op: (ResultSet) -> Unit) = with(metadata.catalogs) {
+        asSequence().filter {
+            it.getString("TABLE_CAT").startsWith("backoffice_")
+        }.forEach(op)
+        close()
+    }
 
     private fun tables(schema: String, op: (ResultSet) -> Unit) {
-        with (metadata.getTables(catalog, schema, null, arrayOf("TABLE", "VIEW"))) {
+        with (metadata.getTables(schema, null, null, arrayOf("TABLE", "VIEW"))) {
             asSequence().filter {
                 !arrayOf("SYSTEM TABLE", "SYSTEM VIEW").contains(it.getString("TABLE_TYPE"))
             }.forEach(op)
@@ -195,14 +209,14 @@ class ReverseEngineer(val url: String) {
     }
 
     private fun fields(schema: String, table: String, op: (ResultSet) -> Unit) {
-        with (metadata.getColumns(catalog, schema, table, null)) {
+        with (metadata.getColumns(schema, null, table, null)) {
             asSequence().forEach(op)
             close()
         }
     }
 
     private fun primaryKeys(schema: String, table: String, op: (ResultSet) -> Unit) {
-        with (metadata.getPrimaryKeys(catalog, schema, table)) {
+        with (metadata.getPrimaryKeys(schema, null, table)) {
             asSequence().forEach(op)
             close()
         }
@@ -218,7 +232,7 @@ class ReverseEngineer(val url: String) {
     }
 
     private fun foreignKeys(schema: String, table: String, op: (ResultSet) -> Unit) {
-        with (metadata.getImportedKeys(catalog, schema, table)) {
+        with (metadata.getImportedKeys(schema, null, table)) {
             asSequence().forEach(op)
             close()
         }
@@ -235,10 +249,12 @@ class ReverseEngineer(val url: String) {
         Types.FLOAT to "float",
         Types.INTEGER to "integer",
         Types.NUMERIC to "numeric",
+        Types.DECIMAL to "numeric",
         Types.REAL to "double",
         Types.SMALLINT to "short",
         Types.TIME to "time",
         Types.TIMESTAMP to "datetime",
-        Types.VARCHAR to "varchar"
+        Types.VARCHAR to "varchar",
+        Types.LONGVARCHAR to "clob"
     )
 }
