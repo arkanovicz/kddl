@@ -7,8 +7,41 @@ plugins {
     signing
 }
 
-group = "com.republicate.kddl"
-version = "0.7.6"
+allprojects {
+    group = "com.republicate.kddl"
+    version = "0.8"
+    apply(plugin = "org.jetbrains.dokka")
+    apply(plugin = "signing")
+    tasks {
+        /*
+        register<Jar>("sourcesJar") {
+            archiveClassifier.set("sources")
+            dependsOn("classes")
+            from(sourceSets["main"].allSource)
+        }
+         */
+        register<Jar>("dokkaJar") {
+            from(dokkaHtml)
+            dependsOn(dokkaHtml)
+            archiveClassifier.set("javadoc")
+        }
+    }
+}
+
+signing {
+    useGpgCmd()
+    sign(publishing.publications)
+}
+
+apply(plugin = "io.github.gradle-nexus.publish-plugin")
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            useStaging.set(true)
+        }
+    }
+}
 
 repositories {
     mavenCentral()
@@ -114,6 +147,7 @@ application {
     mainClass.set("com.republicate.kddl.MainKt")
 }
 
+/*
 tasks {
     register<Jar>("dokkaJar") {
         from(dokkaHtml)
@@ -126,6 +160,7 @@ signing {
     useGpgCmd()
     sign(publishing.publications)
 }
+ */
 
 publishing {
     publications.withType<MavenPublication> {
@@ -156,6 +191,7 @@ publishing {
     }
 }
 
+/*
 nexusPublishing {
     repositories {
         sonatype {
@@ -163,3 +199,4 @@ nexusPublishing {
         }
     }
 }
+ */

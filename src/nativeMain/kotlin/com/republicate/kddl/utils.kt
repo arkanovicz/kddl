@@ -12,11 +12,11 @@ import platform.posix.fopen
 
 actual object Utils {
 
-    actual fun Utils.getResource(path: String): CharStream {
+    actual fun getResource(path: String): CharStream {
         TODO("Not implemented")
     }
 
-    actual fun Utils.getFile(path: String): CharStream = CharStreams.fromString(readAllText(path), path)
+    actual fun getFile(path: String): CharStream = CharStreams.fromString(readAllText(path), path)
 
     // see https://www.nequalsonelifestyle.com/2020/11/16/kotlin-native-file-io/
     private fun readAllText(filePath: String): String {

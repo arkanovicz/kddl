@@ -10,7 +10,7 @@ import java.util.*
 
 actual object Utils {
 
-    actual fun Utils.getResource(path: String): CharStream = CharStreams.fromStream(
+    actual fun getResource(path: String): CharStream = CharStreams.fromStream(
         {}.javaClass.classLoader.getResourceAsStream(path) ?: throw RuntimeException("resource $path not found"),
         StandardCharsets.UTF_8
     )
@@ -20,7 +20,7 @@ actual object Utils {
 //        path,
 //        StandardCharsets.UTF_8)
 
-    actual fun Utils.getFile(path: String): CharStream {
+    actual fun getFile(path: String): CharStream {
         Paths.get(path)
         val content = Scanner(File(path)).useDelimiter("\\A").next();
         return CharStreams.fromString(
