@@ -7,25 +7,24 @@ plugins {
     signing
 }
 
+tasks {
+    /*
+    register<Jar>("sourcesJar") {
+        archiveClassifier.set("sources")
+        dependsOn("classes")
+        from(sourceSets["main"].allSource)
+    }
+     */
+    register<Jar>("dokkaJar") {
+        from(dokkaHtml)
+        dependsOn(dokkaHtml)
+        archiveClassifier.set("javadoc")
+    }
+}
+
 allprojects {
     group = "com.republicate.kddl"
     version = "0.8"
-    apply(plugin = "org.jetbrains.dokka")
-    apply(plugin = "signing")
-    tasks {
-        /*
-        register<Jar>("sourcesJar") {
-            archiveClassifier.set("sources")
-            dependsOn("classes")
-            from(sourceSets["main"].allSource)
-        }
-         */
-        register<Jar>("dokkaJar") {
-            from(dokkaHtml)
-            dependsOn(dokkaHtml)
-            archiveClassifier.set("javadoc")
-        }
-    }
 }
 
 signing {
@@ -113,8 +112,8 @@ kotlin {
         val nativeTest by getting
         val jvmMain by getting {
             dependencies {
-                runtimeOnly("org.postgresql:postgresql:42.4.0")
-                runtimeOnly("mysql:mysql-connector-java:8.0.25")
+                runtimeOnly("org.postgresql:postgresql:42.5.4")
+                runtimeOnly("mysql:mysql-connector-java:8.0.32")
             }
         }
         val jvmTest by getting {
