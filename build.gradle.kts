@@ -22,10 +22,8 @@ tasks {
     }
 }
 
-allprojects {
-    group = "com.republicate.kddl"
-    version = "0.8"
-}
+group = "com.republicate.kddl"
+version = "0.8"
 
 signing {
     useGpgCmd()

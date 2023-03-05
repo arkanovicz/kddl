@@ -22,6 +22,9 @@ buildscript {
     }
 }
 
+group = "com.republicate.kddl"
+version = "0.8"
+
 dependencies {
     implementation(gradleApi())
     api(rootProject)
@@ -45,13 +48,6 @@ tasks {
 }
 
 tasks {
-    /*
-    register<Jar>("sourcesJar") {
-        archiveClassifier.set("sources")
-        dependsOn("classes")
-        from(sourceSets["main"].allSource)
-    }
-     */
     register<Jar>("dokkaJar") {
         from(dokkaHtml)
         dependsOn(dokkaHtml)
@@ -74,14 +70,16 @@ gradlePlugin {
             version = "0.8"
         }
     }
- //   isAutomatedPublishing = false
+    isAutomatedPublishing = false
 }
 
 afterEvaluate {
     tasks.withType<GenerateMavenPom>() {
         doFirst {
-            with (pom) {
+            with(pom) {
+                group = "com.republicate.kddl"
                 name.set("kddl-gradle-plugin")
+                // packaging = "jar"
                 description.set("kddl-gradle-plugin $version - Gradle plugin to generates SQL database creation scripts from KDDL model file")
                 url.set("https://github.com/arkanovicz/kddl")
                 licenses {
