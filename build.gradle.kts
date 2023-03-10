@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.dokka") version "1.5.0"
     application
     `maven-publish`
-    id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
+    id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
     signing
 }
 
@@ -23,7 +23,7 @@ tasks {
 }
 
 group = "com.republicate.kddl"
-version = "0.8"
+version = "0.9-SNAPSHOT"
 
 signing {
     useGpgCmd()

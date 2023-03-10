@@ -23,7 +23,7 @@ buildscript {
 }
 
 group = "com.republicate.kddl"
-version = "0.8"
+version = "0.9-SNAPSHOT"
 
 dependencies {
     implementation(gradleApi())
@@ -67,7 +67,7 @@ gradlePlugin {
         create("KddlPlugin") {
             id = "kddl-gradle-plugin"
             implementationClass = "com.republicate.kddl.KddlGradlePlugin"
-            version = "0.8"
+            version = "0.9-SNAPSHOT"
         }
     }
     isAutomatedPublishing = false

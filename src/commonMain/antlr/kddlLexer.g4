@@ -13,6 +13,7 @@ TRUE: 'true' ;
 FALSE: 'false' ;
 BOOLEAN: 'boolean' ;
 INT: 'int' ( 'eger' )? ;
+SMALLINT: 'smallint' ( 'eger' )? ;
 SERIAL: 'serial' ;
 LONG: 'long' ;
 FLOAT: 'float' ;

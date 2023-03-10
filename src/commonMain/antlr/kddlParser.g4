@@ -10,6 +10,7 @@ link: left=qualified ( left_optional=QM )? ( left_mult=ST | left_single=LA )? MN
 field: ( pk=ST | unique=EM )? name=LABEL (type ( optional=QM )? default? | MN+ RA reference=qualified ( optional=QM )? CASCADE? direction? ) ;
 type: BOOLEAN
     | INT
+    | SMALLINT
     | SERIAL
     | LONG
     | FLOAT
