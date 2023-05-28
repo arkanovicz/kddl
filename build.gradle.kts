@@ -8,13 +8,6 @@ plugins {
 }
 
 tasks {
-    /*
-    register<Jar>("sourcesJar") {
-        archiveClassifier.set("sources")
-        dependsOn("classes")
-        from(sourceSets["main"].allSource)
-    }
-     */
     register<Jar>("dokkaJar") {
         from(dokkaHtml)
         dependsOn(dokkaHtml)
@@ -144,20 +137,12 @@ application {
     mainClass.set("com.republicate.kddl.MainKt")
 }
 
-/*
-tasks {
-    register<Jar>("dokkaJar") {
-        from(dokkaHtml)
-        dependsOn(dokkaHtml)
-        archiveClassifier.set("javadoc")
+signing {
+    if (project.hasProperty("production")) {
+        useGpgCmd()
+        sign(publishing.publications)
     }
 }
-
-signing {
-    useGpgCmd()
-    sign(publishing.publications)
-}
- */
 
 publishing {
     publications.withType<MavenPublication> {
@@ -187,13 +172,3 @@ publishing {
         artifact(tasks["dokkaJar"])
     }
 }
-
-/*
-nexusPublishing {
-    repositories {
-        sonatype {
-            useStaging.set(true)
-        }
-    }
-}
- */
