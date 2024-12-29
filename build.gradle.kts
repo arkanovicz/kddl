@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.dokka") version "1.5.0"
     application
     `maven-publish`
-    id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
     signing
 }
 
@@ -135,13 +135,6 @@ tasks.filter { it.name.startsWith("compileKotlin") }.forEach { it.dependsOn("gen
 
 application {
     mainClass.set("com.republicate.kddl.MainKt")
-}
-
-signing {
-    if (project.hasProperty("production")) {
-        useGpgCmd()
-        sign(publishing.publications)
-    }
 }
 
 publishing {
