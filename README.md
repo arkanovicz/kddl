@@ -38,7 +38,7 @@ Here's the `example.kddl` file, which should be enough to understand the syntax 
 // Definition for database geo
 
 // Supported data types:
-//   boolean, integer, serial, long, float, double, numeric(*n*,*p*), money,
+//   boolean, integer, bigint, serial, long, float, double, numeric(*n*,*p*), money,
 //   time, date, datetz, datetime, datetimetz, char, char(*n), varchar(*n*), text,
 //   enum( 'value1' [,] 'value2' ...), blob, clob
 
@@ -77,7 +77,7 @@ database geo {
       // gender, lastname, firstname // field types are optional for plantuml (use a coma to disambiguate)
       gender char?                   // field types are mandatory for postgresql
       firstname varchar(200)
-      lastname varchar(200)
+      +lastname varchar(200)         // field is indexed
     }
 
     table location {
