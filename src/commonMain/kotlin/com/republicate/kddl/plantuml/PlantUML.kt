@@ -98,16 +98,16 @@ class PlantUMLFormatter : Formatter {
 
     override fun format(asm: ASTForeignKey, indent: String): String {
         val ret = StringBuilder()
+        val line = if (asm.nonNull) "-" else "."
         if (asm.from is JoinTable) {
             if (asm.from.sourceTable == asm.towards) {
-                ret.append("${indent}${asm.from.sourceTable.name} }-${asm.direction.removeSurrounding("(", ")")}-{ ${asm.from.destTable.name}")
+                ret.append("${indent}${asm.from.sourceTable.name} }${line}${asm.direction.removeSurrounding("(", ")")}${line}{ ${asm.from.destTable.name}")
                 ret.append(EOL)
             } // else NOP
         }
         else {
             ret.append("${indent}${asm.from.name} ")
             if (!asm.unique) ret.append('}')
-            val line = if (asm.nonNull) "-" else "."
             ret.append("${line}${asm.direction.removeSurrounding("(", ")")}${line}> ")
             // if (asm.towards.schema != asm.from.schema) ret.append(asm.towards.schema.name).append('.')
             ret.append(asm.towards.name)
