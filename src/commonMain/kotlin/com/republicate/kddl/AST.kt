@@ -34,6 +34,7 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
     val fields = mutableMapOf<String, ASTField>()
     val foreignKeys = mutableListOf<ASTForeignKey>()
     val children = mutableSetOf<ASTTable>()
+    val indices = mutableListOf<ASTIndex>()
 
     init {
         parent?.children?.add(this) // yeah, I know, leaking out 'this' from ctor... TODO
@@ -49,6 +50,10 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
             listOf(pk)
         }
     }.toSet()
+
+    fun getOrCreateIndex(fields: Set<ASTField>, unique: Boolean) : ASTIndex =
+      indices.filter { it.fields == fields && it.unique == unique }.firstOrNull()
+          ?: ASTIndex(this, fields, unique).also { indices.add(it) }
 
     fun getMaybeInheritedField(name: String) : ASTField? {
         var targetTable : ASTTable? = this
@@ -104,8 +109,8 @@ class ASTField(
     val primaryKey: Boolean = false,
     val nonNull: Boolean = true,
     val unique : Boolean = false,
+    val indexed: Boolean = false,
     val default : Any? = null,
-
     ) : DBObject(name) {
     companion object {
         fun isTextType(type: String): Boolean {
@@ -156,6 +161,13 @@ class ASTField(
     }
 }
 
+// CB TODO - single column unique indices are created by default, no need to create it explicitly
+class ASTIndex(
+    val table: ASTTable,
+    val fields: Set<ASTField>,
+    val unique: Boolean
+)
+
 // CB TODO - for now we don't store pk fields, hoping that it's either a single field PK or that fields are named the same
 // CB TODO - we consider "cascade" but not "set null"
 class ASTForeignKey(
@@ -201,6 +213,6 @@ fun ASTSchema.table(name : String, content : ASTTable.() -> Unit) : ASTTable {
     return ASTTable(this, name).also { tables[name] = it }.apply(content)
 }
 
-fun ASTTable.field(name : String, type : String, primaryKey: Boolean = false, nonNull : Boolean = true, unique : Boolean = false, default : Any? = null) : ASTField {
-    return ASTField(this, name, type, primaryKey, nonNull, unique, default).also {fields[name] = it }
+fun ASTTable.field(name : String, type : String, primaryKey: Boolean = false, nonNull : Boolean = true, unique : Boolean = false, indexed : Boolean = false, default : Any? = null) : ASTField {
+    return ASTField(this, name, type, primaryKey, nonNull, unique, indexed, default).also {fields[name] = it }
 }

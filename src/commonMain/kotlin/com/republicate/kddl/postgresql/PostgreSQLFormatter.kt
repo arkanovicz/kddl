@@ -164,5 +164,5 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
 
     override fun mapType(type: String) = typeMap[type]
 
-    override fun setSchema(schema: String) = "SET search_path TO $schema$END"
+    override fun setSchema(schema: String) = "SET search_path TO $schema,public$END"
 }

@@ -15,6 +15,13 @@ fun parse(ddl: CharStream, errorListener: ANTLRErrorListener = ConsoleErrorListe
     return buildAst(root)
 }
 
+// WIP
+private fun String.returnType(): String = when (this) {
+    "concat" -> "varchar"
+    "uuidv7" -> "uuid"
+    else -> throw SemanticException("return type not known for function: ${this}")
+}
+
 fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
     // database
     val database = ASTDatabase(astDatabase.name!!.text!!)
@@ -33,6 +40,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                 val pk = astField.pk != null
                 val nonNull = astField.optional == null
                 val unique = astField.unique != null
+                val indexed = astField.indexed != null
                 val field = if (reference == null) {
                     // standard field
                     var default: Any? = null
@@ -47,8 +55,18 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                             else -> throw SemanticException("invalid default value: ${astDefault.text}")
                         }
                     }
-                    val type = astField.findType() ?: throw SemanticException("type not found for field: ${astField.text}")
-                    ASTField(table, fieldName, type.text, pk, nonNull, unique, default)
+                    var type = astField.findType()?.text
+                    if (type == null) {
+                        // This section is a work in progress
+                        if (astDefault?.STRING() != null) type = "varchar"
+                        else if (astDefault?.findFunction() != null) type = astDefault?.findFunction()?.LABEL()?.text?.returnType()
+                        else if (astDefault?.findBoolean() != null) type = "boolean"
+                        // else... inspect number type... ?
+                    }
+                    if (type == null) {
+                        throw SemanticException("type not found for field: ${astField.text}")
+                    }
+                    ASTField(table, fieldName, type, pk, nonNull, unique, indexed, default)
                 } else {
                     // link field
                     val refPk = reference.getOrCreatePrimaryKey()
@@ -106,7 +124,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                     fkField
                 }.toSet()
                 val cascade = astLink.CASCADE() != null
-                val fk = ASTForeignKey(fkTable, fkFields, pkTable, true, false, cascade)
+                val fk = ASTForeignKey(from=fkTable, fields=fkFields, towards=pkTable, nonNull=nonNull, false, cascade)
                 fkTable.foreignKeys.add(fk)
             }
         }
