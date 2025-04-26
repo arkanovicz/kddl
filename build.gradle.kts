@@ -1,6 +1,6 @@
 plugins {
-    kotlin("multiplatform") version "1.6.10"
-    id("org.jetbrains.dokka") version "1.5.0"
+    kotlin("multiplatform") version "2.0.21"
+    id("org.jetbrains.dokka") version "1.9.20"
     application
     `maven-publish`
     id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
@@ -44,15 +44,15 @@ buildscript {
         maven("https://jitpack.io")
     }
     dependencies {
-        classpath("com.strumenta.antlr-kotlin:antlr-kotlin-gradle-plugin:6304d5c1c4")
+        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.1")
     }
 }
 
 kotlin {
     sourceSets.all {
         languageSettings.apply {
-            languageVersion = "1.5"
-            apiVersion = "1.5"
+            languageVersion = "1.9"
+            apiVersion = "1.9"
         }
     }
     val hostOs = System.getProperty("os.name")
@@ -74,25 +74,18 @@ kotlin {
         compilations.all {
             kotlinOptions.jvmTarget = "1.8"
         }
-        withJava()
+        // withJava()
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
         }
     }
     sourceSets {
-        val commonAntlr by creating {
-            dependencies {
-                // as api to expose CharStream
-                api("com.strumenta.antlr-kotlin:antlr-kotlin-runtime:6304d5c1c4")
-            }
-            kotlin.srcDir("build/generated-src/commonMain/kotlin")
-        }
         val commonMain by getting {
-            dependsOn(commonAntlr)
             dependencies {
+                api("com.strumenta:antlr-kotlin-runtime:1.0.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.4")
             }
-            kotlin.srcDirs += File("build/generated-src/commonMain/kotlin")
+            kotlin.srcDir("build/generated-src/commonMain/kotlin")
         }
         val commonTest by getting {
             dependencies {
@@ -115,9 +108,9 @@ kotlin {
     }
 }
 
-tasks.register<com.strumenta.antlrkotlin.gradleplugin.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
+tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
     antlrClasspath = configurations.detachedConfiguration(
-            project.dependencies.create("com.strumenta.antlr-kotlin:antlr-kotlin-target:6304d5c1c4")
+            project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.1")
     )
     // maxHeapSize = "64m"
     packageName = "com.republicate.kddl.parser"
