@@ -59,8 +59,8 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                     if (type == null) {
                         // This section is a work in progress
                         if (astDefault?.STRING() != null) type = "varchar"
-                        else if (astDefault?.findFunction() != null) type = astDefault?.findFunction()?.LABEL()?.text?.returnType()
-                        else if (astDefault?.findBoolean() != null) type = "boolean"
+                        else if (astDefault?.function() != null) type = astDefault?.function()?.LABEL()?.text?.returnType()
+                        else if (astDefault?.boolean() != null) type = "boolean"
                         // else... inspect number type... ?
                     }
                     if (type == null) {
