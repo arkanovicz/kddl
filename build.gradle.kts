@@ -1,3 +1,6 @@
+import org.jetbrains.dokka.gradle.DokkaTask
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+
 plugins {
     kotlin("multiplatform") version "2.0.21"
     id("org.jetbrains.dokka") version "1.9.20"
@@ -108,52 +111,54 @@ kotlin {
     // explicitApi()
 }
 
-val generateKotlinGrammarSource = tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
-    // dependsOn("cleanGenerateKotlinGrammarSource")
-    antlrClasspath = configurations.detachedConfiguration(
+val generateKotlinGrammarSource =
+    tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
+        // dependsOn("cleanGenerateKotlinGrammarSource")
+        antlrClasspath = configurations.detachedConfiguration(
             project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.1")
-    )
-    packageName = "com.republicate.kddl.parser"
-    // maxHeapSize = "64m"
+        )
+        packageName = "com.republicate.kddl.parser"
+        // maxHeapSize = "64m"
 
-    arguments = listOf(
-      "-Dlanguage=Kotlin",
-      "-no-visitor",
-      "-no-listener",
-      "-encoding", "UTF-8"
-    )
-    source = project.objects
-            .sourceDirectorySet("antlr", "antlr")
-            .srcDir("src/commonMain/antlr").apply {
+        arguments = listOf(
+            "-Dlanguage=Kotlin", "-no-visitor", "-no-listener", "-encoding", "UTF-8"
+        )
+        source = project.objects.sourceDirectorySet("antlr", "antlr").srcDir("src/commonMain/antlr").apply {
                 include("*.g4")
             }
-    outputDirectory = File("build/generated-src/commonMain/kotlin")
-    group = "code generation"
-}
+        outputDirectory = File("build/generated-src/commonMain/kotlin")
+        group = "code generation"
+    }
+
+val signingTasks = tasks.withType<Sign>()
 
 tasks {
-  withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>> {
-    dependsOn(generateKotlinGrammarSource)
-  }
-
-  //
-  // The source JAR tasks must explicitly depend on the grammar generation
-  // to avoid Gradle complaining and erroring out
-  //
-  /* Fails with:
-     The task 'jvmSourcesJar' (org.gradle.jvm.tasks.Jar) is not a subclass of the given type (org.gradle.api.tasks.bundling.Jar).
-  sourcesJar {
-    dependsOn(generateKotlinGrammarSource)
-  }
-
-  kotlin.targets.configureEach {
-    if (publishable) {
-      named<Jar>("${targetName}SourcesJar") {
+    // Tasks depending on code generation
+    withType<KotlinCompilationTask<*>> {
         dependsOn(generateKotlinGrammarSource)
-      }
     }
-  }
-  */
+    named<DokkaTask>("dokkaHtml") {
+        dependsOn(generateKotlinGrammarSource)
+    }
+    sourcesJar {
+        dependsOn(generateKotlinGrammarSource)
+    }
+    kotlin.targets.configureEach {
+        if (publishable) {
+            named<org.gradle.jvm.tasks.Jar>("${targetName}SourcesJar") {
+                dependsOn(generateKotlinGrammarSource)
+            }
+        }
+    }
+    // Tasks depending on signing
+    withType<AbstractPublishToMaven>().configureEach {
+        dependsOn(signingTasks)
+    }
+    // Other dependencies...
+    all {
+        if (this.name == "compileTestKotlinNative") this.mustRunAfter("signNativePublication")
+        if (this.name == "linkDebugTestNative") this.mustRunAfter("signNativePublication")
+    }
 }
 
 application {

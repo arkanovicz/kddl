@@ -67,7 +67,7 @@ gradlePlugin {
         create("KddlPlugin") {
             id = "kddl-gradle-plugin"
             implementationClass = "com.republicate.kddl.KddlGradlePlugin"
-            version = "0.9"
+            version = "0.10"
         }
     }
     isAutomatedPublishing = false
