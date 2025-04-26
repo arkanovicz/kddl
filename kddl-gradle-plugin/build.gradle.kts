@@ -18,12 +18,12 @@ buildscript {
         maven("https://jitpack.io")
     }
     dependencies {
-        classpath("com.strumenta.antlr-kotlin:antlr-kotlin-gradle-plugin:6304d5c1c4")
+        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.1")
     }
 }
 
 group = "com.republicate.kddl"
-version = "0.9"
+version = "0.10"
 
 dependencies {
     implementation(gradleApi())
@@ -42,8 +42,8 @@ tasks {
         }
     }
     withType<JavaCompile>().configureEach {
-        sourceCompatibility = JavaVersion.VERSION_1_8.toString()
-        targetCompatibility = JavaVersion.VERSION_1_8.toString()
+        sourceCompatibility = JavaVersion.VERSION_11.toString()
+        targetCompatibility = JavaVersion.VERSION_11.toString()
     }
 }
 

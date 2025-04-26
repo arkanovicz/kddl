@@ -1,6 +1,6 @@
 plugins {
-    kotlin("multiplatform") version "1.6.10"
-    id("org.jetbrains.dokka") version "1.5.0"
+    kotlin("multiplatform") version "2.0.21"
+    id("org.jetbrains.dokka") version "1.9.20"
     application
     `maven-publish`
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
@@ -16,7 +16,7 @@ tasks {
 }
 
 group = "com.republicate.kddl"
-version = "0.9"
+version = "0.10"
 
 signing {
     useGpgCmd()
@@ -35,25 +35,24 @@ nexusPublishing {
 
 repositories {
     mavenCentral()
-    maven("https://jitpack.io")
 }
 
 buildscript {
     repositories {
         mavenCentral()
-        maven("https://jitpack.io")
     }
     dependencies {
-        classpath("com.strumenta.antlr-kotlin:antlr-kotlin-gradle-plugin:6304d5c1c4")
+        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.1")
     }
 }
 
 kotlin {
     sourceSets.all {
         languageSettings.apply {
-            languageVersion = "1.5"
-            apiVersion = "1.5"
+            languageVersion = "1.9"
+            apiVersion = "1.9"
         }
+        languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
     }
     val hostOs = System.getProperty("os.name")
     val isMingwX64 = hostOs.startsWith("Windows")
@@ -72,7 +71,7 @@ kotlin {
     }
     jvm {
         compilations.all {
-            kotlinOptions.jvmTarget = "1.8"
+            kotlinOptions.jvmTarget = "11"
         }
         withJava()
         testRuns["test"].executionTask.configure {
@@ -80,19 +79,12 @@ kotlin {
         }
     }
     sourceSets {
-        val commonAntlr by creating {
-            dependencies {
-                // as api to expose CharStream
-                api("com.strumenta.antlr-kotlin:antlr-kotlin-runtime:6304d5c1c4")
-            }
-            kotlin.srcDir("build/generated-src/commonMain/kotlin")
-        }
         val commonMain by getting {
-            dependsOn(commonAntlr)
             dependencies {
+                api("com.strumenta:antlr-kotlin-runtime:1.0.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.4")
             }
-            kotlin.srcDirs += File("build/generated-src/commonMain/kotlin")
+            kotlin.srcDir("build/generated-src/commonMain/kotlin")
         }
         val commonTest by getting {
             dependencies {
@@ -113,15 +105,23 @@ kotlin {
             }
         }
     }
+    // explicitApi()
 }
 
-tasks.register<com.strumenta.antlrkotlin.gradleplugin.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
+val generateKotlinGrammarSource = tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
+    // dependsOn("cleanGenerateKotlinGrammarSource")
     antlrClasspath = configurations.detachedConfiguration(
-            project.dependencies.create("com.strumenta.antlr-kotlin:antlr-kotlin-target:6304d5c1c4")
+            project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.1")
     )
-    // maxHeapSize = "64m"
     packageName = "com.republicate.kddl.parser"
-    arguments = listOf("-no-visitor", "-no-listener")
+    // maxHeapSize = "64m"
+
+    arguments = listOf(
+      "-Dlanguage=Kotlin",
+      "-no-visitor",
+      "-no-listener",
+      "-encoding", "UTF-8"
+    )
     source = project.objects
             .sourceDirectorySet("antlr", "antlr")
             .srcDir("src/commonMain/antlr").apply {
@@ -131,7 +131,30 @@ tasks.register<com.strumenta.antlrkotlin.gradleplugin.AntlrKotlinTask>("generate
     group = "code generation"
 }
 
-tasks.filter { it.name.startsWith("compileKotlin") }.forEach { it.dependsOn("generateKotlinCommonGrammarSource") }
+tasks {
+  withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>> {
+    dependsOn(generateKotlinGrammarSource)
+  }
+
+  //
+  // The source JAR tasks must explicitly depend on the grammar generation
+  // to avoid Gradle complaining and erroring out
+  //
+  /* Fails with:
+     The task 'jvmSourcesJar' (org.gradle.jvm.tasks.Jar) is not a subclass of the given type (org.gradle.api.tasks.bundling.Jar).
+  sourcesJar {
+    dependsOn(generateKotlinGrammarSource)
+  }
+
+  kotlin.targets.configureEach {
+    if (publishable) {
+      named<Jar>("${targetName}SourcesJar") {
+        dependsOn(generateKotlinGrammarSource)
+      }
+    }
+  }
+  */
+}
 
 application {
     mainClass.set("com.republicate.kddl.MainKt")
