@@ -16,7 +16,7 @@ tasks {
 }
 
 group = "com.republicate.kddl"
-version = "0.9-SNAPSHOT"
+version = "0.10"
 
 signing {
     useGpgCmd()
@@ -35,13 +35,11 @@ nexusPublishing {
 
 repositories {
     mavenCentral()
-    maven("https://jitpack.io")
 }
 
 buildscript {
     repositories {
         mavenCentral()
-        maven("https://jitpack.io")
     }
     dependencies {
         classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.1")
@@ -54,6 +52,7 @@ kotlin {
             languageVersion = "1.9"
             apiVersion = "1.9"
         }
+        languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
     }
     val hostOs = System.getProperty("os.name")
     val isMingwX64 = hostOs.startsWith("Windows")
@@ -72,9 +71,9 @@ kotlin {
     }
     jvm {
         compilations.all {
-            kotlinOptions.jvmTarget = "1.8"
+            kotlinOptions.jvmTarget = "11"
         }
-        // withJava()
+        withJava()
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
         }
@@ -106,15 +105,23 @@ kotlin {
             }
         }
     }
+    // explicitApi()
 }
 
-tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
+val generateKotlinGrammarSource = tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
+    // dependsOn("cleanGenerateKotlinGrammarSource")
     antlrClasspath = configurations.detachedConfiguration(
             project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.1")
     )
-    // maxHeapSize = "64m"
     packageName = "com.republicate.kddl.parser"
-    arguments = listOf("-no-visitor", "-no-listener")
+    // maxHeapSize = "64m"
+
+    arguments = listOf(
+      "-Dlanguage=Kotlin",
+      "-no-visitor",
+      "-no-listener",
+      "-encoding", "UTF-8"
+    )
     source = project.objects
             .sourceDirectorySet("antlr", "antlr")
             .srcDir("src/commonMain/antlr").apply {
@@ -124,7 +131,30 @@ tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlin
     group = "code generation"
 }
 
-tasks.filter { it.name.startsWith("compileKotlin") }.forEach { it.dependsOn("generateKotlinCommonGrammarSource") }
+tasks {
+  withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>> {
+    dependsOn(generateKotlinGrammarSource)
+  }
+
+  //
+  // The source JAR tasks must explicitly depend on the grammar generation
+  // to avoid Gradle complaining and erroring out
+  //
+  /* Fails with:
+     The task 'jvmSourcesJar' (org.gradle.jvm.tasks.Jar) is not a subclass of the given type (org.gradle.api.tasks.bundling.Jar).
+  sourcesJar {
+    dependsOn(generateKotlinGrammarSource)
+  }
+
+  kotlin.targets.configureEach {
+    if (publishable) {
+      named<Jar>("${targetName}SourcesJar") {
+        dependsOn(generateKotlinGrammarSource)
+      }
+    }
+  }
+  */
+}
 
 application {
     mainClass.set("com.republicate.kddl.MainKt")

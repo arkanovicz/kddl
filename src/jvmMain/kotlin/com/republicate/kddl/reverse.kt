@@ -78,7 +78,6 @@ class ReverseEngineer(val url: String) {
     fun process(): ASTDatabase {
 
         with(metadata.catalogs) {
-            println("@@@@ ${asSequence().joinToString { it.getString("TABLE_CAT")}}")
             close()
         }
 

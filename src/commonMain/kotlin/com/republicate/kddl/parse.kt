@@ -18,15 +18,15 @@ fun parse(ddl: CharStream, errorListener: ANTLRErrorListener = ConsoleErrorListe
 fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
     // database
     val database = ASTDatabase(astDatabase.name!!.text!!)
-    for (astSchema in astDatabase.findSchema()) {
+    for (astSchema in astDatabase.schema()) {
         // schema
         val schema = ASTSchema(database, astSchema.name!!.text!!)
         database.schemas[schema.name] = schema
-        for (astTable in astSchema.findTable()) {
+        for (astTable in astSchema.table()) {
             // table
-            val table = ASTTable(schema, astTable.name!!.text!!, database.resolveTable(schema, astTable.par), astTable.findDirection()?.text ?: "")
+            val table = ASTTable(schema, astTable.name!!.text!!, database.resolveTable(schema, astTable.par), astTable.direction()?.text ?: "")
             schema.tables[table.name] = table
-            for (astField in astTable.findField()) {
+            for (astField in astTable.field()) {
                 // field
                 val fieldName = astField.name!!.text!!
                 val reference = database.resolveTable(schema, astField.reference)
@@ -36,24 +36,24 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                 val field = if (reference == null) {
                     // standard field
                     var default: Any? = null
-                    val astDefault = astField.findDefault()?.findExpression()
+                    val astDefault = astField.default()?.expression()
                     if (astDefault != null) {
                         default = when {
                             astDefault.NULL() != null -> null
                             astDefault.STRING() != null -> astDefault.text.removeSurrounding("'")
-                            astDefault.findBoolean() != null -> astDefault.text.toBooleanStrict()
-                            astDefault.findNumber() != null -> astDefault.text.toDouble()
-                            astDefault.findFunction() != null -> astDefault.text /* TODO */
+                            astDefault.boolean() != null -> astDefault.text.toBooleanStrict()
+                            astDefault.number() != null -> astDefault.text.toDouble()
+                            astDefault.function() != null -> astDefault.text /* TODO */
                             else -> throw SemanticException("invalid default value: ${astDefault.text}")
                         }
                     }
-                    val type = astField.findType() ?: throw SemanticException("type not found for field: ${astField.text}")
+                    val type = astField.type() ?: throw SemanticException("type not found for field: ${astField.text}")
                     ASTField(table, fieldName, type.text, pk, nonNull, unique, default)
                 } else {
                     // link field
                     val refPk = reference.getOrCreatePrimaryKey()
                     val cascade = astField.CASCADE() != null
-                    val direction = astField.findDirection()?.text ?: ""
+                    val direction = astField.direction()?.text ?: ""
                     val fieldType = refPk.first().type.let { if (it == "serial") "int" else it }
                     ASTField(table, fieldName, fieldType, pk, nonNull, unique)
                         .also {
@@ -64,7 +64,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                 table.fields[field.name] = field
             }
         }
-        for (astLink in astSchema.findLink()) {
+        for (astLink in astSchema.link()) {
             val left = database.resolveTable(schema, astLink.left) ?: throw SemanticException("left table not found") // should not happen
             val right = database.resolveTable(schema, astLink.right) ?: throw SemanticException("right table not found") // should not happen
             val leftMult = astLink.left_mult != null || astLink.right_single != null // || astLink.left_single == null
