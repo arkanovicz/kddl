@@ -25,6 +25,10 @@ buildscript {
 group = "com.republicate.kddl"
 version = "0.10"
 
+kotlin {
+    jvmToolchain(11)
+}
+
 dependencies {
     implementation(gradleApi())
     api(rootProject)

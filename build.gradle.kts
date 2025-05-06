@@ -8,6 +8,7 @@ plugins {
     `maven-publish`
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
     signing
+    id("com.github.ben-manes.versions") version "0.52.0"
 }
 
 tasks {
@@ -19,7 +20,7 @@ tasks {
 }
 
 group = "com.republicate.kddl"
-version = "0.10"
+version = "0.11"
 
 signing {
     useGpgCmd()
@@ -45,7 +46,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.1")
+        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.3")
     }
 }
 
@@ -81,25 +82,29 @@ kotlin {
             useJUnitPlatform()
         }
     }
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api("com.strumenta:antlr-kotlin-runtime:1.0.1")
-                implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.4")
+                api("com.strumenta:antlr-kotlin-runtime:1.0.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.6")
             }
             kotlin.srcDir("build/generated-src/commonMain/kotlin")
         }
         val commonTest by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
             }
         }
         val nativeMain by getting
         val nativeTest by getting
         val jvmMain by getting {
             dependencies {
-                runtimeOnly("org.postgresql:postgresql:42.5.4")
-                runtimeOnly("mysql:mysql-connector-java:8.0.32")
+                runtimeOnly("org.postgresql:postgresql:42.7.5")
+                runtimeOnly("mysql:mysql-connector-java:8.0.33")
             }
         }
         val jvmTest by getting {
@@ -115,7 +120,7 @@ val generateKotlinGrammarSource =
     tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
         // dependsOn("cleanGenerateKotlinGrammarSource")
         antlrClasspath = configurations.detachedConfiguration(
-            project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.1")
+            project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.3")
         )
         packageName = "com.republicate.kddl.parser"
         // maxHeapSize = "64m"
