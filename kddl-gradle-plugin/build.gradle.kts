@@ -23,7 +23,7 @@ buildscript {
 }
 
 group = "com.republicate.kddl"
-version = "0.10"
+version = "0.11"
 
 kotlin {
     jvmToolchain(11)
