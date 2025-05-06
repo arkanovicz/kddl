@@ -104,7 +104,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 runtimeOnly("org.postgresql:postgresql:42.7.5")
-                runtimeOnly("mysql:mysql-connector-java:8.0.33")
+                runtimeOnly("com.mysql:mysql-connector-j:9.3.0")
             }
         }
         val jvmTest by getting {
