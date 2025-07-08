@@ -20,7 +20,7 @@ tasks {
 }
 
 group = "com.republicate.kddl"
-version = "0.11"
+version = "0.12-SNAPSHOT"
 
 signing {
     useGpgCmd()
@@ -168,6 +168,7 @@ tasks {
 
 application {
     mainClass.set("com.republicate.kddl.MainKt")
+    // applicationDefaultJvmArgs = listOf<String>("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5006")
 }
 
 publishing {
