@@ -124,7 +124,13 @@ class ReverseEngineer(val url: String) {
             if (it.wasNull()) size = null // instead of 0
             val fieldName: String = it.getString("COLUMN_NAME")
             val sqlType = it.getInt("DATA_TYPE")
-            var dataType = typesMap[sqlType] ?: throw SQLException("unhandled sql type: ${sqlType} (${it.getString("TYPE_NAME")})")
+            val sqlTypeName = it.getString("TYPE_NAME")
+            var dataType =
+                when(sqlType) {
+                    Types.ARRAY -> "array" // TODO
+                    Types.OTHER -> typesNamesMap[sqlTypeName] ?: throw SQLException("unhandled sql type: ${sqlType} (${sqlTypeName})")
+                    else -> typesMap[sqlType] ?: throw SQLException("unhandled sql type: ${sqlType} (${it.getString("TYPE_NAME")})")
+                }
             val colSize = it.getInt("COLUMN_SIZE")
             val colPrec = it.getInt("DECIMAL_DIGITS")
             var columnDef = it.getString("COLUMN_DEF")
@@ -193,7 +199,8 @@ class ReverseEngineer(val url: String) {
     // temporary specific mysql version
     private fun schemas(op: (ResultSet) -> Unit) = with(metadata.catalogs) {
         asSequence().filter {
-            it.getString("TABLE_CAT").startsWith("backoffice_")
+            // TODO filter system tables depending on each provider
+            true
         }.forEach(op)
         close()
     }
@@ -246,14 +253,25 @@ class ReverseEngineer(val url: String) {
         Types.DATE to "date",
         Types.DOUBLE to "double",
         Types.FLOAT to "float",
+        Types.TINYINT to "byte",
+        Types.SMALLINT to "short",
         Types.INTEGER to "integer",
+        Types.BIGINT to "long",
         Types.NUMERIC to "numeric",
         Types.DECIMAL to "numeric",
         Types.REAL to "double",
         Types.SMALLINT to "short",
         Types.TIME to "time",
-        Types.TIMESTAMP to "datetime",
+        Types.TIMESTAMP to "timestamp",
+        Types.TIMESTAMP_WITH_TIMEZONE to "timestamptz",
         Types.VARCHAR to "varchar",
-        Types.LONGVARCHAR to "clob"
+        Types.LONGVARCHAR to "clob",
+        Types.BINARY to "blob"
+    )
+
+    private val typesNamesMap = mapOf<String, String>(
+        "uuid" to "uuid",
+        "json" to "json",
+        "jsonb" to "json",
     )
 }
