@@ -2,7 +2,7 @@
 
 // Supported data types:
 //   boolean, integer, serial, long, float, double, numeric(*n*,p), money,
-//   time, date, datetz, datetime, datetimetz, char, char(*n), varchar(*n*), text,
+//   time, time_tz, date, datetime, datetime_tz, char, char(*n), varchar(*n*), text,
 //   enum( 'value1' [,] 'value2' ...)
 
 // a database contains options and schemas

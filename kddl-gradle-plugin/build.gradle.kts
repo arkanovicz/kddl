@@ -18,7 +18,7 @@ buildscript {
         maven("https://jitpack.io")
     }
     dependencies {
-        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.1")
+        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.3")
     }
 }
 
@@ -33,9 +33,6 @@ dependencies {
     implementation(gradleApi())
     api(rootProject)
     testImplementation(gradleTestKit())
-    testImplementation("junit:junit:4.12")
-    testImplementation(kotlin("test"))
-    testImplementation(kotlin("test-junit"))
 }
 
 tasks {
@@ -71,7 +68,7 @@ gradlePlugin {
         create("KddlPlugin") {
             id = "kddl-gradle-plugin"
             implementationClass = "com.republicate.kddl.KddlGradlePlugin"
-            version = "0.11"
+            version = "0.12"
         }
     }
     isAutomatedPublishing = false

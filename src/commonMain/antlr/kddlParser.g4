@@ -19,10 +19,10 @@ type: BOOLEAN
     | MONEY
     | NUMERIC ( LP prec=INTEGER ( CM scale=INTEGER )? RP )?
     | TIME
+    | TIME_TZ
     | DATE
-    | DATETZ
-    | DATETIME ( LP prec=INTEGER RP )?
-    | DATETIMETZ ( LP prec=INTEGER RP )?
+    | TIMESTAMP ( LP prec=INTEGER RP )?
+    | TIMESTAMP_TZ ( LP prec=INTEGER RP )?
     | INTERVAL
     | CHAR ( LP width=INTEGER RP )?
     | VARCHAR ( LP ( width=INTEGER )? RP )?
@@ -30,8 +30,7 @@ type: BOOLEAN
     | BLOB
     | ENUM LP value=STRING ( CM? value=STRING )* RP
     | UUID
-    | JSON
-    | JSONB ;
+    | JSON ;
 default: EQ expression ;
 expression: NULL | boolean | number | STRING | function ;
 boolean: TRUE | FALSE ;

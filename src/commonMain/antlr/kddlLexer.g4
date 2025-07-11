@@ -23,9 +23,8 @@ MONEY: 'money' ;
 NUMERIC: 'numeric' ;
 TIME: 'time' ;
 DATE: 'date' ;
-DATETZ: 'datetz' ;
 DATETIME: 'datetime' | 'timestamp' ;
-DATETIMETZ : 'datetimetz' ;
+DATETIMETZ : 'datetimetz' | 'datetime_tz' | 'timestamptz' | 'timestamp_tz' ;
 INTERVAL: 'interval' ;
 CHAR: 'char' ;
 VARCHAR: 'varchar' ;
@@ -33,8 +32,7 @@ TEXT: 'text' | 'clob' ;
 BLOB: 'blob' ;
 ENUM: 'enum' ;
 UUID: 'uuid' ;
-JSON: 'json' ;
-JSONB: 'jsonb' ;
+JSON: 'json' | 'jsonb' ;
 CASCADE: 'cascade' ;
 
 // values

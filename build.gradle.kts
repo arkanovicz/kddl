@@ -2,7 +2,7 @@ import org.jetbrains.dokka.gradle.DokkaTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
-    kotlin("multiplatform") version "2.0.21"
+    kotlin("multiplatform") version "2.1.0"
     id("org.jetbrains.dokka") version "1.9.20"
     application
     `maven-publish`
@@ -20,7 +20,7 @@ tasks {
 }
 
 group = "com.republicate.kddl"
-version = "0.12-SNAPSHOT"
+version = "0.12"
 
 signing {
     useGpgCmd()
@@ -32,6 +32,8 @@ apply(plugin = "io.github.gradle-nexus.publish-plugin")
 nexusPublishing {
     repositories {
         sonatype {
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
             useStaging.set(true)
         }
     }
@@ -53,8 +55,8 @@ buildscript {
 kotlin {
     sourceSets.all {
         languageSettings.apply {
-            languageVersion = "1.9"
-            apiVersion = "1.9"
+            languageVersion = "2.0"
+            apiVersion = "2.0"
         }
         languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
     }
@@ -96,14 +98,14 @@ kotlin {
         }
         val commonTest by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             }
         }
         val nativeMain by getting
         val nativeTest by getting
         val jvmMain by getting {
             dependencies {
-                runtimeOnly("org.postgresql:postgresql:42.7.5")
+                runtimeOnly("org.postgresql:postgresql:42.7.7")
                 runtimeOnly("com.mysql:mysql-connector-j:9.3.0")
             }
         }

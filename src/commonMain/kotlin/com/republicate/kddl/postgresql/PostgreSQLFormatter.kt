@@ -154,7 +154,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
     }
 
     private val typeMap = mapOf(
-        "datetime" to "timestamp",
+        "timestamp_tz" to "timestamp with timezone",
         "int" to "integer",
         "long" to "bigint",
         "float" to "real",
