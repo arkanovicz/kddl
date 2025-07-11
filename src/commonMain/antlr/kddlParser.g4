@@ -19,10 +19,10 @@ type: BOOLEAN
     | MONEY
     | NUMERIC ( LP prec=INTEGER ( CM scale=INTEGER )? RP )?
     | TIME
-    | TIME_TZ
+    | TIMETZ
     | DATE
     | TIMESTAMP ( LP prec=INTEGER RP )?
-    | TIMESTAMP_TZ ( LP prec=INTEGER RP )?
+    | TIMESTAMPTZ ( LP prec=INTEGER RP )?
     | INTERVAL
     | CHAR ( LP width=INTEGER RP )?
     | VARCHAR ( LP ( width=INTEGER )? RP )?

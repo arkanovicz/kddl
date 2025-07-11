@@ -262,9 +262,9 @@ class ReverseEngineer(val url: String) {
         Types.REAL to "double",
         Types.SMALLINT to "short",
         Types.TIME to "time",
-        Types.TIME_WITH_TIMEZONE to "time_tz",
+        Types.TIME_WITH_TIMEZONE to "timetz",
         Types.TIMESTAMP to "timestamp",
-        Types.TIMESTAMP_WITH_TIMEZONE to "timestamp_tz",
+        Types.TIMESTAMP_WITH_TIMEZONE to "timestamptz",
         Types.VARCHAR to "varchar",
         Types.LONGVARCHAR to "clob",
         Types.BINARY to "blob"

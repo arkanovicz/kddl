@@ -39,7 +39,7 @@ Here's the `example.kddl` file, which should be enough to understand the syntax 
 
 // Supported data types:
 //   boolean, integer, bigint, serial, long, float, double, numeric(*n*,*p*), money,
-//   time, time_tz, date, timestamp, timestamp_tz, char, char(*n), varchar(*n*), text,
+//   time, timetz, date, timestamp, timestamptz, char, char(*n), varchar(*n*), text,
 //   enum( 'value1' [,] 'value2' ...), blob, clob
 
 // a database contains options and schemas
