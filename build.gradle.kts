@@ -20,7 +20,7 @@ tasks {
 }
 
 group = "com.republicate.kddl"
-version = "0.12"
+version = "0.13"
 
 signing {
     useGpgCmd()

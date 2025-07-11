@@ -23,7 +23,7 @@ buildscript {
 }
 
 group = "com.republicate.kddl"
-version = "0.11"
+version = "0.13"
 
 kotlin {
     jvmToolchain(11)
@@ -68,7 +68,7 @@ gradlePlugin {
         create("KddlPlugin") {
             id = "kddl-gradle-plugin"
             implementationClass = "com.republicate.kddl.KddlGradlePlugin"
-            version = "0.12"
+            version = "0.13"
         }
     }
     isAutomatedPublishing = false
