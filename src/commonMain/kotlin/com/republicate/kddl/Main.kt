@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.enum
 import com.republicate.kddl.hypersql.HyperSQLFormatter
 import com.republicate.kddl.plantuml.PlantUMLFormatter
@@ -21,11 +22,11 @@ fun main(args: Array<String>) = Kddl().main(args)
 
 class Kddl: CliktCommand() {
 
-    val input by argument("-i", help="input file or url")
-    val format by argument("-f", help="output format").enum<Format>()
-    val driver by option("-d", help="jdbc driver")
-    val uppercase by option("-u").flag()
-    val quoted by option("-q").flag()
+    val input: String by option("-i", "--input", help="input file or url, required").required()
+    val format by option("-f", "--format", help="output format, required").enum<Format>().required()
+    val driver by option("-d", "--driver", help="jdbc driver")
+    val uppercase by option("-u", "--uppercase", help="uppercase identifiers").flag()
+    val quoted by option("-q", "--quoted", help="quoted identifiers").flag()
 
     override fun run() {
         val tree = when {
