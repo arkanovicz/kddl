@@ -157,7 +157,7 @@ $ ./gradlew build
 ## TODO
 
 - document library usage
-- plugins for gradle [done in skorm] / maven
+- plugin for maven
 - db versionning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
 - custom types
 - more tests (for instance: inheritance from another schema's table)

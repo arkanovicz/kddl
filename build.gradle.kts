@@ -28,9 +28,13 @@ allprojects {
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
 
+    val isRelease = project.hasProperty("release")
     signing {
-        useGpgCmd()
-        sign(publishing.publications)
+        isRequired = isRelease
+        if (isRelease) {
+            useGpgCmd()
+            sign(publishing.publications)
+        }
     }
 
     tasks {
@@ -218,5 +222,18 @@ tasks {
     // Set main class in jvm jar
     named<Jar>("jvmJar") {
         manifest { attributes["Main-Class"] = "com.republicate.kddl.MainKt" }
+    }
+}
+
+tasks.register<JavaExec>("run") {
+    group = "application"
+    description = "Run the JVM application"
+    val jvmJar = tasks.named<Jar>("jvmJar")
+    dependsOn(jvmJar)
+    val jarFile = jvmJar.get().archiveFile.get().asFile
+    classpath = files(jarFile) + configurations.getByName("jvmRuntimeClasspath")
+    mainClass.set("com.republicate.kddl.MainKt")
+    if (project.hasProperty("args")) {
+        args = (project.property("args") as String).split("\\s+".toRegex())
     }
 }

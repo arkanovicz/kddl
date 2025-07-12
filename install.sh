@@ -1,5 +1,5 @@
 #!/bin/bash
 
-./gradlew jvmJar publishJvmPublicationToMavenLocal
+./gradlew jvmJar publishKotlinMultiplatformPublicationToMavenLocal publishJvmPublicationToMavenLocal
 
 
