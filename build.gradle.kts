@@ -101,14 +101,6 @@ kotlin {
         }
     }
 
-    sourceSets.all {
-        languageSettings.apply {
-            languageVersion = "2.0"
-            apiVersion = "2.0"
-        }
-        // languageSettings.optIn()
-    }
-
     targets.configureEach {
         compilations.configureEach {
             compileTaskProvider.get().compilerOptions {
@@ -121,11 +113,6 @@ kotlin {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_21)
         }
-        /*
-        testRuns["test"].executionTask.configure {
-            useJUnitPlatform()
-        }
-         */
     }
     js {
         nodejs()
@@ -142,35 +129,39 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
+        all {
+            languageSettings.apply {
+                languageVersion = "2.0"
+                apiVersion = "2.0"
+            }
+        }
+
+        commonMain {
             dependencies {
                 api(libs.antlr.kotlin.runtime)
                 implementation(libs.clikt)
             }
             kotlin.srcDir("build/generated-src/commonMain/kotlin")
         }
-        val commonTest by getting {
+        commonTest {
             dependencies {
+                implementation(kotlin("test"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             }
         }
-        val nativeMain by getting
-        val nativeTest by getting
-        val jvmMain by getting {
+        nativeMain
+        nativeTest
+        jvmMain {
             dependencies {
                 runtimeOnly(libs.postgresql)
                 runtimeOnly(libs.mysql.connector)
             }
         }
-        val jvmTest by getting {
+        jvmTest {
             dependencies {
                 implementation(kotlin("test"))
             }
         }
-    }
-    // explicitApi()
-    sourceSets.commonTest.dependencies {
-        implementation(kotlin("test"))
     }
 }
 
@@ -178,10 +169,9 @@ val generateKotlinGrammarSource =
     tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
         // dependsOn("cleanGenerateKotlinGrammarSource")
         antlrClasspath = configurations.detachedConfiguration(
-            project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.3")
+            project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.5")
         )
         packageName = "com.republicate.kddl.parser"
-        // maxHeapSize = "64m"
 
         arguments = listOf(
             "-Dlanguage=Kotlin", "-no-visitor", "-no-listener", "-encoding", "UTF-8"
