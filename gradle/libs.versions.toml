@@ -1,0 +1,24 @@
+[versions]
+kotlin = "2.2.0"
+dokka = "1.9.20"
+nexusPublish = "2.0.0"
+versionsPlugin = "0.52.0"
+
+antlrKotlin = "1.0.5"
+clikt = "5.0.3"
+coroutines = "1.10.2"
+postgres = "42.7.7"
+mysql = "9.3.0"
+
+[libraries]
+antlr-kotlin-runtime = { module = "com.strumenta:antlr-kotlin-runtime", version.ref = "antlrKotlin" }
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+mysql-connector = { module = "com.mysql:mysql-connector-j", version.ref = "mysql" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgres" }
+
+[plugins]
+multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+nexusPublish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "nexusPublish" }
+versions = { id = "com.github.ben-manes.versions", version.ref = "versionsPlugin" }

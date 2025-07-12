@@ -10,6 +10,7 @@ import platform.posix.fclose
 import platform.posix.fgets
 import platform.posix.fopen
 
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 actual object Utils {
 
     actual fun getResource(path: String): CharStream {

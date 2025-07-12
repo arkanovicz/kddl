@@ -35,7 +35,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             val match = it.range.first
             ret.append(camel.substring(pos, match))
             if (match > pos && camel[match - 1] != '_') ret.append('_')
-            ret.append(it.value.toLowerCase())
+            ret.append(it.value.lowercase())
             pos = match + 1
         }
         ret.append(camel.substring(pos))
@@ -72,15 +72,15 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
                     it.type.startsWith("enum(")
                 }.distinctBy {
                     it.name
-                }.map {
+                }.joinToString(separator = EOL) {
                     defineEnum(it)
-                }.joinToString(separator = EOL))
+                })
         }
         ret.append(EOL)
         ret.append(
-            asm.tables.values.map {
+            asm.tables.values.joinToString(separator = EOL) {
                 format(it, indent)
-            }.joinToString(separator = EOL)
+            }
         )
         asm.tables.values.flatMap{ it.foreignKeys }/*.filter {
             !it.isFieldLink()
@@ -108,7 +108,6 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
     override fun format(asm: ASTTable, indent: String): String {
         val ret = StringBuilder()
         var tableName = transform(asm.name)
-        var viewName : String? = null;
 
         if (asm.parent != null) {
             if (!supportsInheritance) throw Error("inheritance not supported")
@@ -152,19 +151,19 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             if (!indexedFields.isEmpty()) {
                 val unique = indexedFields.all { it.unique }
                 val index = asm.getOrCreateIndex(indexedFields, unique)
-                val indexCols = indexedFields.map { transform(it.name) }.joinToString(", ")
+                val indexCols = indexedFields.joinToString(", ") { transform(it.name) }
                 if (firstField) firstField = false else ret.append(",")
                 ret.append(EOL)
                 ret.append("  ${if (unique) "UNIQUE " else ""}INDEX (${indexCols})")
             }
-            val pkFields = asm.getPrimaryKey().map { transform(it.name) }.joinToString(", ")
+            val pkFields = asm.getPrimaryKey().joinToString(", ") { transform(it.name) }
             if (pkFields.isNotEmpty()) {
                 if (firstField) firstField = false else ret.append(",")
                 ret.append(EOL)
                 ret.append("  PRIMARY KEY ($pkFields)")
             }
         } else {
-            val pkFields = asm.parent.getPrimaryKey().map { transform(it.name) }.joinToString(",")
+            val pkFields = asm.parent.getPrimaryKey().joinToString(",") { transform(it.name) }
             if (pkFields.isNotEmpty()) {
                 if (firstField) firstField = false else ret.append(",")
                 ret.append(EOL)
@@ -181,6 +180,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
         return ret.toString()
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun format(asm: ASTField, indent: String): String {
         val ret = StringBuilder(indent)
         asm.apply {
@@ -230,9 +230,9 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
         ret.append("ALTER TABLE $srcName")
         ret.append(" ADD CONSTRAINT $fkName")
         ret.append(" FOREIGN KEY (${
-            asm.fields.map {
+            asm.fields.joinToString(",") {
                 transform(it.name)
-            }.joinToString(",")
+            }
         })")
         ret.append(" REFERENCES ")
 
@@ -243,14 +243,14 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             if (asm.towards.parent == null) transform(asm.towards.name)
             else "${Q}base_${transform(asm.towards.name).removeSurrounding(Q)}$Q"
         ret.append("$dstName (${
-            asm.towards.getOrCreatePrimaryKey().map {
+            asm.towards.getOrCreatePrimaryKey().joinToString(",") {
                 transform(it.name)
-            }.joinToString(",")
+            }
         })")
         if (asm.cascade) {
             ret.append(" ON DELETE CASCADE")
         }
-        ret.append("$END")
+        ret.append(END)
         return ret.toString()
     }
 }

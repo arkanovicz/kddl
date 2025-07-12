@@ -52,8 +52,8 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
     }.toSet()
 
     fun getOrCreateIndex(fields: Set<ASTField>, unique: Boolean) : ASTIndex =
-      indices.filter { it.fields == fields && it.unique == unique }.firstOrNull()
-          ?: ASTIndex(this, fields, unique).also { indices.add(it) }
+        indices.firstOrNull { it.fields == fields && it.unique == unique }
+            ?: ASTIndex(this, fields, unique).also { indices.add(it) }
 
     fun getMaybeInheritedField(name: String) : ASTField? {
         var targetTable : ASTTable? = this
@@ -184,7 +184,7 @@ class ASTForeignKey(
         val fk = fields.first()
         val pk = towards.getOrCreatePrimaryKey().first()
         if (fk.default != null) return false
-        if (fk.name != pk.name && fk.name != "${pk.table.name.decapitalize()}${pk.name.capitalize()}") return false
+        if (fk.name != pk.name && fk.name != "${pk.table.name.withoutCapital()}${pk.name.withCapital()}") return false
         if (pk.type != fk.type || pk.type == "serial" && fk.type !in setOf("int", "integer", "long")) return false
         return true
     }

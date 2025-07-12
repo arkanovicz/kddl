@@ -59,7 +59,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                     if (type == null) {
                         // This section is a work in progress
                         if (astDefault?.STRING() != null) type = "varchar"
-                        else if (astDefault?.function() != null) type = astDefault?.function()?.LABEL()?.text?.returnType()
+                        else if (astDefault?.function() != null) type = astDefault.function()?.LABEL()?.text?.returnType()
                         else if (astDefault?.boolean() != null) type = "boolean"
                         // else... inspect number type... ?
                     }
@@ -114,7 +114,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                         // need to create an implicit field
                         val fieldName =
                             if (fkField == null) it.name
-                            else "${pkTable.name.decapitalize()}${it.name.capitalize()}"
+                            else "${pkTable.name.withoutCapital()}${it.name.withCapital()}"
                         val type = it.type.let { if (it == "serial") "int" else it}
                         fkField = ASTField(fkTable, fieldName, type, false, nonNull, false)
                         fkTable.fields[fieldName] = fkField

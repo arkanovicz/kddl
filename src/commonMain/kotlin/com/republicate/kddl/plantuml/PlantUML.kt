@@ -82,11 +82,9 @@ class PlantUMLFormatter : Formatter {
                     ret.append(' ').append(
                         type.removePrefix("enum")
                             .removeSurrounding("(", ")")
-                            .split(',')
-                            .map {
+                            .split(',').joinToString(separator = "|") {
                                 it.trim().removeSurrounding("'")
                             }
-                            .joinToString(separator = "|")
                     )
                 }
                 else ret.append(" $type")

@@ -1,33 +1,80 @@
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
+
 import org.jetbrains.dokka.gradle.DokkaTask
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
-    kotlin("multiplatform") version "2.1.0"
-    id("org.jetbrains.dokka") version "1.9.20"
-    application
-    `maven-publish`
-    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
+    alias(libs.plugins.multiplatform)
+    alias(libs.plugins.dokka)
     signing
-    id("com.github.ben-manes.versions") version "0.52.0"
+    `maven-publish`
+    alias(libs.plugins.nexusPublish)
+    alias(libs.plugins.versions)
 }
 
-tasks {
-    register<Jar>("dokkaJar") {
-        from(dokkaHtml)
-        dependsOn(dokkaHtml)
-        archiveClassifier.set("javadoc")
+description = "KDDL Database model swiss-army knife"
+
+allprojects {
+    group = "com.republicate.kddl"
+    version = "0.13"
+
+    repositories {
+        mavenCentral()
+    }
+
+    apply(plugin = "org.jetbrains.dokka")
+    apply(plugin = "maven-publish")
+    apply(plugin = "signing")
+
+    signing {
+        useGpgCmd()
+        sign(publishing.publications)
+    }
+
+    tasks {
+        register<Jar>("dokkaJar") {
+            from(dokkaHtml)
+            dependsOn(dokkaHtml)
+            archiveClassifier.set("javadoc")
+        }
     }
 }
 
-group = "com.republicate.kddl"
-version = "0.13"
+afterEvaluate {
+    publishing {
+        publications.withType<MavenPublication> {
+            pom {
+                name.set(project.name)
+                description.set(project.description)
+                url.set("https://github.com/arkanovicz/kddl")
+                licenses {
+                    license {
+                        name.set("The Apache Software License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("cbrisson")
+                        name.set("Claude Brisson")
+                        email.set("claude.brisson@gmail.com")
+                        organization.set("republicate.com")
+                        organizationUrl.set("https://republicate.com")
+                    }
+                }
+                scm {
+                    connection.set("scm:git@github.com/arkanovicz/kddl.git")
+                    url.set("https://github.com/arkanovicz/kddl")
+                }
+            }
 
-signing {
-    useGpgCmd()
-    sign(publishing.publications)
+            artifact(tasks["dokkaJar"])
+        }
+    }
 }
 
-apply(plugin = "io.github.gradle-nexus.publish-plugin")
 
 nexusPublishing {
     repositories {
@@ -39,60 +86,66 @@ nexusPublishing {
     }
 }
 
-repositories {
-    mavenCentral()
-}
-
 buildscript {
-    repositories {
-        mavenCentral()
-    }
     dependencies {
-        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.3")
+        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.5")
     }
 }
 
 kotlin {
+    applyDefaultHierarchyTemplate {
+        common {
+            group("commonJs") {
+                withJs()
+            }
+        }
+    }
+
     sourceSets.all {
         languageSettings.apply {
             languageVersion = "2.0"
             apiVersion = "2.0"
         }
-        languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+        // languageSettings.optIn()
     }
-    val hostOs = System.getProperty("os.name")
-    val isMingwX64 = hostOs.startsWith("Windows")
-    val nativeTarget = when {
-        hostOs == "Mac OS X" -> macosX64("native")
-        hostOs == "Linux" -> linuxX64("native")
-        isMingwX64 -> mingwX64("native")
-        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
-    }
-    nativeTarget.apply {
-        binaries {
-            executable {
-                entryPoint = "main"
+
+    targets.configureEach {
+        compilations.configureEach {
+            compileTaskProvider.get().compilerOptions {
+                freeCompilerArgs.add("-Xexpect-actual-classes")
             }
         }
     }
+
     jvm {
-        compilations.all {
-            kotlinOptions.jvmTarget = "11"
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_21)
         }
-        withJava()
+        /*
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
         }
+         */
     }
+    js {
+        nodejs()
+        // compilations.all { compileKotlinTask.kotlinOptions.freeCompilerArgs += listOf("-Xir-minimized-member-names=false") }
+    }
+    linuxX64()
+    linuxArm64()
+    mingwX64()
+    macosX64()
+    macosArm64()
+
     jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api("com.strumenta:antlr-kotlin-runtime:1.0.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.6")
+                api(libs.antlr.kotlin.runtime)
+                implementation(libs.clikt)
             }
             kotlin.srcDir("build/generated-src/commonMain/kotlin")
         }
@@ -105,8 +158,8 @@ kotlin {
         val nativeTest by getting
         val jvmMain by getting {
             dependencies {
-                runtimeOnly("org.postgresql:postgresql:42.7.7")
-                runtimeOnly("com.mysql:mysql-connector-j:9.3.0")
+                runtimeOnly(libs.postgresql)
+                runtimeOnly(libs.mysql.connector)
             }
         }
         val jvmTest by getting {
@@ -116,6 +169,9 @@ kotlin {
         }
     }
     // explicitApi()
+    sourceSets.commonTest.dependencies {
+        implementation(kotlin("test"))
+    }
 }
 
 val generateKotlinGrammarSource =
@@ -157,47 +213,20 @@ tasks {
             }
         }
     }
+
     // Tasks depending on signing
     withType<AbstractPublishToMaven>().configureEach {
         dependsOn(signingTasks)
     }
+
     // Other dependencies...
     all {
         if (this.name == "compileTestKotlinNative") this.mustRunAfter("signNativePublication")
         if (this.name == "linkDebugTestNative") this.mustRunAfter("signNativePublication")
     }
-}
 
-application {
-    mainClass.set("com.republicate.kddl.MainKt")
-    // applicationDefaultJvmArgs = listOf<String>("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5006")
-}
-
-publishing {
-    publications.withType<MavenPublication> {
-        pom {
-            name.set("kddl")
-            description.set("Database model generator")
-            url.set("https://github.com/arkanovicz/kddl")
-            licenses {
-                license {
-                    name.set("The Apache Software License, Version 2.0")
-                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                }
-            }
-            developers {
-                developer {
-                    name.set("Claude Brisson")
-                    email.set("claude.brisson@gmail.com")
-                    organization.set("republicate.com")
-                    organizationUrl.set("https://republicate.com")
-                }
-            }
-            scm {
-                connection.set("scm:git@github.com:arkanovicz/kddl.git")
-                url.set("https://github.com/arkanovicz/kddl")
-            }
-        }
-        artifact(tasks["dokkaJar"])
+    // Set main class in jvm jar
+    named<Jar>("jvmJar") {
+        manifest { attributes["Main-Class"] = "com.republicate.kddl.MainKt" }
     }
 }

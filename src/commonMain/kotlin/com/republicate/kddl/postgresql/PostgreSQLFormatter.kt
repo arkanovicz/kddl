@@ -26,31 +26,27 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
             if (table.schema == table.parent.schema) parentName
             else "${transform(parent.schema.name)}.$parentName"
         ret.append("CREATE VIEW $viewName AS${EOL}  SELECT${EOL}    ")
-        val parentPkFields = parent.getPrimaryKey().map {
+        val parentPkFields = parent.getPrimaryKey().joinToString(",") {
             "$parentName.${transform(it.name)}"
-        }.joinToString(",")
+        }
         ret.append(parentPkFields)
         val parentNonPKFields = parent.fields.values
-            .filter { !it.primaryKey }
-            .map { transform(it.name) }
-            .joinToString(",")
+            .filter { !it.primaryKey }.joinToString(",") { transform(it.name) }
         if (parentNonPKFields.isNotEmpty()) {
             ret.append(",")
             ret.append(parentNonPKFields)
         }
         ret.append(",${Q}class$Q")
-        val childFields = table.fields.values
-            .map { transform(it.name) }
-            .joinToString(",")
+        val childFields = table.fields.values.joinToString(",") { transform(it.name) }
         if (childFields.isNotEmpty()) {
             ret.append(",${EOL}")
             ret.append("    $childFields")
         }
         ret.append(EOL)
         ret.append("  FROM ${transform(tableName)} JOIN $qualifiedParentName ON ")
-        val join = parent.getPrimaryKey().map {
+        val join = parent.getPrimaryKey().joinToString(" AND ") {
             "$parentName.${it.name} = $tableName.${it.name}"
-        }.joinToString(" AND ")
+        }
         ret.append(join)
         ret.append("$END${EOL}")
         
@@ -97,7 +93,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
                 }
                 ret.append(")${EOL}    VALUES (")
                 ret.append("CURRVAL('$seqName')")
-                var childValues = table.fields.values.map { "NEW.${transform(it.name)}" }.joinToString(",")
+                var childValues = table.fields.values.joinToString(",") { "NEW.${transform(it.name)}" }
                 if (childValues.isNotEmpty()) {
                     ret.append(",$childValues")
                 }
@@ -109,14 +105,14 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
 
                 ret.append("CREATE RULE insert_${baseName} AS ON INSERT TO $viewName DO INSTEAD (${EOL}")
                 ret.append("  INSERT INTO $qualifiedParentName ($pkName,$parentNonPKFields,${Q}class$Q)${EOL}    VALUES (")
-                val parentValues = parent.fields.values.map { "NEW.${transform(it.name)}" }.joinToString(",")
+                val parentValues = parent.fields.values.joinToString(",") { "NEW.${transform(it.name)}" }
                 ret.append("$parentValues,'$viewName')$END")
                 ret.append("  INSERT INTO $tableName ($pkName")
                 if (childFields.isNotEmpty()) {
                     ret.append(",$childFields")
                 }
                 ret.append(")${EOL}    VALUES (")
-                var childValues = table.fields.values.map { "NEW.${transform(it.name)}" }.joinToString(",")
+                var childValues = table.fields.values.joinToString(",") { "NEW.${transform(it.name)}" }
                 ret.append("NEW.$pkName")
                 if (childValues.isNotEmpty()) {
                     ret.append(",$childValues")
@@ -129,13 +125,11 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
             ret.append("  UPDATE $qualifiedParentName${EOL}")
             ret.append("    SET ")
             val updateParent = parent.fields.values.filter { !it.primaryKey }
-                .map { "${transform(it.name)} = NEW.${transform(it.name)}" }
-                .joinToString(",")
+                .joinToString(",") { "${transform(it.name)} = NEW.${transform(it.name)}" }
             ret.append("$updateParent${EOL}    WHERE $pkName = NEW.$pkName${EOL}")
             ret.append("  RETURNING NEW.*$END")
-            val updateChild = table.fields.values
-                .map { "${transform(it.name)} = NEW.${transform(it.name)}" }
-                .joinToString(",")
+            val updateChild =
+                table.fields.values.joinToString(",") { "${transform(it.name)} = NEW.${transform(it.name)}" }
             if (updateChild.isNotEmpty()) {
                 ret.append("  UPDATE $tableName${EOL}")
                 ret.append("    SET ")
