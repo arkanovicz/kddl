@@ -3,6 +3,8 @@
 import org.jetbrains.dokka.gradle.DokkaTask
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -150,7 +152,7 @@ kotlin {
         commonTest {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                implementation(libs.coroutines.core)
             }
         }
         nativeMain
@@ -166,6 +168,16 @@ kotlin {
                 implementation(kotlin("test"))
             }
         }
+    }
+
+    val nativeTestResourcesPath = "${layout.buildDirectory.get()}/processedResources/native/test"
+    val copyNativeTestResources = project.tasks.register<Copy>("copyNativeTestResources") {
+        from("src/commonTest/resources")
+        into(nativeTestResourcesPath)
+    }
+    tasks.withType<KotlinNativeTest>().configureEach {
+        dependsOn(copyNativeTestResources)
+        workingDir = nativeTestResourcesPath
     }
 }
 

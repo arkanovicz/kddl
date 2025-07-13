@@ -35,6 +35,7 @@ ENUM: 'enum' ;
 UUID: 'uuid' ;
 JSON: 'json' | 'jsonb' ;
 CASCADE: 'cascade' ;
+OPTION: 'option' ;
 
 // values
 LABEL: [a-zA-Z_][a-zA-Z0-9_]* ;

@@ -34,7 +34,7 @@ tasks {
 gradlePlugin {
     plugins {
         create("KddlPlugin") {
-            id = "kddl-gradle-plugin"
+            id = "com.republicate.kddl"
             implementationClass = "com.republicate.kddl.gradle.KddlPlugin"
             version = project.version as String
         }

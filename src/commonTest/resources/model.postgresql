@@ -1,0 +1,124 @@
+-- database example
+
+-- schema geo
+DROP SCHEMA IF EXISTS geo CASCADE;
+CREATE SCHEMA geo;
+SET search_path TO geo,public;
+
+CREATE TABLE zone (
+  code varchar(10) NOT NULL,
+  name varchar NOT NULL UNIQUE,
+  description text,
+  active boolean NOT NULL DEFAULT false,
+  class varchar(30),
+  PRIMARY KEY (code)
+);
+
+
+CREATE TABLE base_department (
+  code varchar(10) NOT NULL,
+  PRIMARY KEY (code)
+);
+
+CREATE VIEW department AS
+  SELECT
+    zone.code,name,description,active,class
+  FROM base_department JOIN zone ON zone.code = base_department.code;
+
+CREATE RULE insert_department AS ON INSERT TO department DO INSTEAD (
+  INSERT INTO zone (code,name,description,active,class)
+    VALUES (NEW.code,NEW.name,NEW.description,NEW.active,'department');
+  INSERT INTO base_department (code)
+    VALUES (NEW.code);
+);
+
+CREATE RULE update_department AS ON UPDATE TO department DO INSTEAD (
+  UPDATE zone
+    SET name = NEW.name,description = NEW.description,active = NEW.active
+    WHERE code = NEW.code
+  RETURNING NEW.*;
+);
+
+CREATE RULE delete_department AS ON DELETE TO department DO INSTEAD (
+  DELETE FROM zone WHERE code = OLD.code;
+);
+
+
+CREATE TABLE base_city (
+  code varchar(10) NOT NULL,
+  has_train boolean,
+  department_code varchar(10) NOT NULL,
+  PRIMARY KEY (code)
+);
+
+CREATE VIEW city AS
+  SELECT
+    zone.code,name,description,active,class,
+    has_train,department_code
+  FROM base_city JOIN zone ON zone.code = base_city.code;
+
+CREATE RULE insert_city AS ON INSERT TO city DO INSTEAD (
+  INSERT INTO zone (code,name,description,active,class)
+    VALUES (NEW.code,NEW.name,NEW.description,NEW.active,'city');
+  INSERT INTO base_city (code,has_train,department_code)
+    VALUES (NEW.code,NEW.has_train,NEW.department_code);
+);
+
+CREATE RULE update_city AS ON UPDATE TO city DO INSTEAD (
+  UPDATE zone
+    SET name = NEW.name,description = NEW.description,active = NEW.active
+    WHERE code = NEW.code
+  RETURNING NEW.*;
+  UPDATE base_city
+    SET has_train = NEW.has_train,department_code = NEW.department_code
+    WHERE code = NEW.code;
+);
+
+CREATE RULE delete_city AS ON DELETE TO city DO INSTEAD (
+  DELETE FROM zone WHERE code = OLD.code;
+);
+
+
+CREATE TABLE link (
+  src_id varchar(10) NOT NULL,
+  dst_id varchar(10) NOT NULL,
+  step_id varchar(10) NOT NULL,
+  distance integer NOT NULL,
+  PRIMARY KEY (src_id, dst_id, step_id)
+);
+
+ALTER TABLE base_city ADD CONSTRAINT department_code FOREIGN KEY (department_code) REFERENCES base_department (code);
+ALTER TABLE link ADD CONSTRAINT src FOREIGN KEY (src_id) REFERENCES zone (code) ON DELETE CASCADE;
+ALTER TABLE link ADD CONSTRAINT dst FOREIGN KEY (dst_id) REFERENCES zone (code) ON DELETE CASCADE;
+ALTER TABLE link ADD CONSTRAINT step FOREIGN KEY (step_id) REFERENCES zone (code);
+ALTER TABLE base_department ADD CONSTRAINT code FOREIGN KEY (code) REFERENCES zone (code) ON DELETE CASCADE;
+
+ALTER TABLE base_city ADD CONSTRAINT code FOREIGN KEY (code) REFERENCES zone (code) ON DELETE CASCADE;
+
+
+
+-- schema client
+DROP SCHEMA IF EXISTS client CASCADE;
+CREATE SCHEMA client;
+SET search_path TO client,public;
+CREATE TYPE enum_nature AS ENUM ('depart','arrival');
+CREATE CAST (varchar AS enum_nature) WITH INOUT AS IMPLICIT;
+CREATE TABLE contact (
+  contact_id serial NOT NULL,
+  gender char,
+  firstname varchar NOT NULL,
+  lastname varchar NOT NULL,
+  PRIMARY KEY (contact_id)
+);
+
+
+CREATE TABLE location (
+  name varchar(50) NOT NULL DEFAULT 'untitled',
+  nature enum_nature NOT NULL,
+  address text,
+  contact_id integer NOT NULL,
+  code varchar(10) NOT NULL
+);
+
+ALTER TABLE location ADD CONSTRAINT contact FOREIGN KEY (contact_id) REFERENCES contact (contact_id);
+ALTER TABLE location ADD CONSTRAINT code FOREIGN KEY (code) REFERENCES geo.zone (code);

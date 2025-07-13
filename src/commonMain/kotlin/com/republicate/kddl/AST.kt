@@ -5,7 +5,7 @@ abstract  class DBObject(val name : String) {
 }
 
 open class ASTDatabase(name : String) : DBObject(name) {
-    val options = mutableMapOf<String, Option>()
+    val options = mutableMapOf<String, String>()
     val schemas = mutableMapOf<String, ASTSchema>()
     override fun display(indent: String, builder: StringBuilder): StringBuilder {
         builder.appendLine("${indent}database $name {")
@@ -44,7 +44,7 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
 
     fun getOrCreatePrimaryKey() : Set<ASTField> = fields.values.filter { it.primaryKey }.ifEmpty {
         parent?.getOrCreatePrimaryKey() ?: run {
-            val pkName = "$name$suffix"
+            val pkName = "$name$keySuffix"
             val pk = ASTField(this, pkName, "serial", true, true, true)
             fields[pkName] = pk
             listOf(pk)
@@ -100,7 +100,7 @@ class JoinTable(schema: ASTSchema, val sourceTable: ASTTable, val destTable : AS
 
 }
 
-val suffix = "_id"
+val keySuffix = "_id"
 
 class ASTField(
     val table : ASTTable,
@@ -118,7 +118,7 @@ class ASTField(
         }
     }
     fun isDefaultKey() : Boolean {
-        return primaryKey && type == "serial" && name == "${table.name}$suffix" // TODO - handle suffix
+        return primaryKey && type == "serial" && name == "${table.name}$keySuffix" // TODO - handle suffix
     }
     fun getForeignKeys() : List<ASTForeignKey> = table.foreignKeys.filter { this in it.fields }
     fun isLinkField() : Boolean = !getForeignKeys().isEmpty()
@@ -190,11 +190,6 @@ class ASTForeignKey(
     }
 }
 
-class Option(
-    val name : String,
-    val value : String
-)
-
 // DSL
 
 fun database(name : String, content: ASTDatabase.() -> Unit) : ASTDatabase {
@@ -205,8 +200,8 @@ fun ASTDatabase.schema(name : String, content : ASTSchema.() -> Unit) : ASTSchem
     return ASTSchema(this, name).also { schemas[name] = it }.apply(content)
 }
 
-fun ASTDatabase.option(name : String, value : String) : Option {
-    return Option(name, value).also { options[name] = it }
+fun ASTDatabase.option(name : String, value : String) : Pair<String, String> {
+    return Pair(name, value).also { options[name] = value }
 }
 
 fun ASTSchema.table(name : String, content : ASTTable.() -> Unit) : ASTTable {

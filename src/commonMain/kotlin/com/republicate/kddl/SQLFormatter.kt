@@ -88,11 +88,10 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             ret.append(format(it, indent))
         }
 
-        // foriegn key from child to parent table
+        // foreign key from child to parent table
         if (supportsInheritance) {
             asm.tables.values.filter { it.parent != null }
                 .forEach { tbl ->
-
                     // foreign key from base to parent
                     var parent = tbl.parent
                     val fkFields =  parent!!.getPrimaryKey().map {
@@ -225,8 +224,8 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             if (src.parent == null) transform(src.name)
             else "base_${transform(src.name).removeSurrounding(Q)}"
         val fkName =
-            if (scopedObjectNames) transform(asm.fields.joinToString("_") { it.name }.removeSuffix(suffix))
-            else "$Q${transform(src.name).removeSurrounding(Q)}_${transform(asm.fields.first().name.removeSuffix(suffix)).removeSurrounding(Q)}_fk$Q"
+            if (scopedObjectNames) transform(asm.fields.joinToString("_") { it.name }.removeSuffix(keySuffix))
+            else "$Q${transform(src.name).removeSurrounding(Q)}_${transform(asm.fields.first().name.removeSuffix(keySuffix)).removeSurrounding(Q)}_fk$Q"
         ret.append("ALTER TABLE $srcName")
         ret.append(" ADD CONSTRAINT $fkName")
         ret.append(" FOREIGN KEY (${

@@ -85,51 +85,65 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
         for (astLink in astSchema.link()) {
             val left = database.resolveTable(schema, astLink.left) ?: throw SemanticException("left table not found") // should not happen
             val right = database.resolveTable(schema, astLink.right) ?: throw SemanticException("right table not found") // should not happen
-            val leftMult = astLink.left_mult != null || astLink.right_single != null // || astLink.left_single == null
-            val rightMult = astLink.right_mult != null || astLink.left_single != null // || astLink.right_single == null
-            val leftNoNull = astLink.left_optional == null
-            val rightNoNull = astLink.right_optional == null
-            if (leftMult && rightMult) {
-                val linkTable = ASTTable(left.schema, "${left.name}_${right.name}")
-                left.schema.tables[linkTable.name] = linkTable
-                arrayOf(left, right).forEach {
-                    val pk = it.getOrCreatePrimaryKey()
-                    val fkFields = pk.map {
-                        val fkField = ASTField(linkTable, it.name, it.type.let { if (it == "serial") "int" else it}, false, true, false)
-                        linkTable.fields[it.name] = fkField
-                        fkField
-                    }.toSet()
-                    val fk = ASTForeignKey(linkTable, fkFields, it, true, false, true)
-                    linkTable.foreignKeys.add(fk)
-                }
-                schema.tables[linkTable.name] = linkTable
-            } else if (leftMult || rightMult) {
-                val pkTable = if (leftMult) right else left
-                val fkTable = if (leftMult) left else right
-                val nonNull = if (leftMult) rightNoNull else leftNoNull
-                val pk = pkTable.getOrCreatePrimaryKey()
-                val fkFields = pk.map {
-                    var fkField = fkTable.getMaybeInheritedField(it.name)
-                    if (fkField == null || fkField.primaryKey) {
-                        // need to create an implicit field
-                        val fieldName =
-                            if (fkField == null) it.name
-                            else "${pkTable.name.withoutCapital()}${it.name.withCapital()}"
-                        val type = it.type.let { if (it == "serial") "int" else it}
-                        fkField = ASTField(fkTable, fieldName, type, false, nonNull, false)
-                        fkTable.fields[fieldName] = fkField
-                    }
-                    if (fkField.type != it.type && it.type == "serial" && fkField.type !in arrayOf("int", "long"))
-                        throw SemanticException("link ${fkTable.name} -> ${pkTable.name}: incompatible fk/pk field types")
-                    fkField
-                }.toSet()
-                val cascade = astLink.CASCADE() != null
-                val fk = ASTForeignKey(from=fkTable, fields=fkFields, towards=pkTable, nonNull=nonNull, false, cascade)
-                fkTable.foreignKeys.add(fk)
-            }
+            processLink(astLink, left, right)
         }
     }
+    // root links
+    for (astLink in astDatabase.link()) {
+        val left = database.resolveTable(astLink.left) ?: throw SemanticException("left table not found") // should not happen
+        val right = database.resolveTable(astLink.right) ?: throw SemanticException("right table not found") // should not happen
+        processLink(astLink, left, right)
+    }
+    // options
+    for (astOption in astDatabase.option()) {
+        database.option(astOption.name!!.text!!, astOption.value!!.text!!)
+    }
     return database
+}
+
+fun processLink(astLink: kddlParser.LinkContext, left: ASTTable, right: ASTTable) {
+    val leftMult = astLink.left_mult != null || astLink.right_single != null // || astLink.left_single == null
+    val rightMult = astLink.right_mult != null || astLink.left_single != null // || astLink.right_single == null
+    val leftNoNull = astLink.left_optional == null
+    val rightNoNull = astLink.right_optional == null
+    if (leftMult && rightMult) {
+        val linkTable = ASTTable(left.schema, "${left.name}_${right.name}")
+        left.schema.tables[linkTable.name] = linkTable
+        arrayOf(left, right).forEach {
+            val pk = it.getOrCreatePrimaryKey()
+            val fkFields = pk.map {
+                val fkField = ASTField(linkTable, it.name, it.type.let { if (it == "serial") "int" else it}, false, true, false)
+                linkTable.fields[it.name] = fkField
+                fkField
+            }.toSet()
+            val fk = ASTForeignKey(linkTable, fkFields, it, true, false, true)
+            linkTable.foreignKeys.add(fk)
+        }
+        left.schema.tables[linkTable.name] = linkTable
+    } else if (leftMult || rightMult) {
+        val pkTable = if (leftMult) right else left
+        val fkTable = if (leftMult) left else right
+        val nonNull = if (leftMult) rightNoNull else leftNoNull
+        val pk = pkTable.getOrCreatePrimaryKey()
+        val fkFields = pk.map {
+            var fkField = fkTable.getMaybeInheritedField(it.name)
+            if (fkField == null || fkField.primaryKey) {
+                // need to create an implicit field
+                val fieldName =
+                    if (fkField == null) it.name
+                    else "${pkTable.name.withoutCapital()}${it.name.withCapital()}"
+                val type = it.type.let { if (it == "serial") "int" else it}
+                fkField = ASTField(fkTable, fieldName, type, false, nonNull, false)
+                fkTable.fields[fieldName] = fkField
+            }
+            if (fkField.type != it.type && it.type == "serial" && fkField.type !in arrayOf("int", "long"))
+                throw SemanticException("link ${fkTable.name} -> ${pkTable.name}: incompatible fk/pk field types")
+            fkField
+        }.toSet()
+        val cascade = astLink.CASCADE() != null
+        val fk = ASTForeignKey(from=fkTable, fields=fkFields, towards=pkTable, nonNull=nonNull, false, cascade)
+        fkTable.foreignKeys.add(fk)
+    }
 }
 
 fun Tree.format(parser: Parser, indent: Int = 0): String = buildString {
@@ -146,6 +160,8 @@ fun Tree.format(parser: Parser, indent: Int = 0): String = buildString {
         append(prefix).append(")")
     }
 }
+
+fun ASTDatabase.resolveTable(astTable: kddlParser.QualifiedContext?) = resolveTable(null, astTable)
 
 fun ASTDatabase.resolveTable(defSchema: ASTSchema?, astTable: kddlParser.QualifiedContext?) : ASTTable? {
     if (astTable == null) return null

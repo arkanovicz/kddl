@@ -14,7 +14,7 @@ import platform.posix.fopen
 actual object Utils {
 
     actual fun getResource(path: String): CharStream {
-        TODO("Not implemented")
+        TODO("Not implemented (reading resource $path)")
     }
 
     actual fun getFile(path: String): CharStream = CharStreams.fromString(readAllText(path), path)

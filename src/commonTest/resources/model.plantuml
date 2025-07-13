@@ -1,0 +1,48 @@
+@startuml
+'' Database example
+package geo {
+  class zone {
+    {field} **code** varchar(10)
+    {field} name varchar
+    {field} //description text//
+    {field} active boolean
+  }
+
+  class department
+  department --|> zone
+
+  class city {
+    {field} //hasTrain boolean//
+    {field} departmentCode varchar(10)
+  }
+  city --|> zone
+
+  class link {
+    {field} distance integer
+    {field} **src_id** varchar(10)
+    {field} **dst_id** varchar(10)
+    {field} **step_id** varchar(10)
+  }
+}
+
+package client {
+  class contact {
+    {field} //gender char//
+    {field} firstname varchar
+    {field} lastname varchar
+  }
+
+  class location {
+    {field} name varchar(50)
+    {field} nature depart|arrival
+    {field} //address text//
+  }
+}
+  city }--> department
+  link }--> zone
+  link }--> zone
+  link }-down-> zone
+  location }--> contact
+  location }--> zone : code
+ hide methods
+@enduml

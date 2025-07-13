@@ -110,7 +110,7 @@ class PlantUMLFormatter : Formatter {
             // if (asm.towards.schema != asm.from.schema) ret.append(asm.towards.schema.name).append('.')
             ret.append(asm.towards.name)
             if (asm.isFieldLink()) {
-                val linkName = asm.fields.first().name.removeSuffix(suffix)
+                val linkName = asm.fields.first().name.removeSuffix(keySuffix)
                 if (linkName != asm.towards.name) ret.append(" : $linkName")
             }
             ret.append(EOL)

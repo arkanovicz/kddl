@@ -2,7 +2,7 @@ parser grammar kddlParser;
 
 options { tokenVocab = kddlLexer; }
 
-database: DATABASE name=LABEL LC ( schema | link ) * RC ;
+database: DATABASE name=LABEL LC ( schema | link | option ) * RC ;
 schema: SCHEMA name=LABEL LC ( table | link )* RC ;
 table: TABLE name=LABEL ( FS par=qualified direction? )? ( LC field* RC )?;
 direction: LP ( UP | DOWN | LEFT | RIGHT ) RP;
@@ -40,3 +40,4 @@ function: name=LABEL LP arglist? RP;
 qualified: ( ref_schema=LABEL DOT )? name=LABEL ;
 arglist: label_or_expr ( CM label_or_expr )* ;
 label_or_expr: label=LABEL | expr=expression ;
+option: OPTION name=LABEL EQ value=STRING ;

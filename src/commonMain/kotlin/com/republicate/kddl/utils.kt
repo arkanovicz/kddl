@@ -7,6 +7,6 @@ expect object Utils {
     fun getFile(path: String): CharStream
 }
 
-// TODO use Locale.ROOT on JVM
+// TODO use root locale
 fun String.withCapital() = replaceFirstChar { it.uppercase() }
 fun String.withoutCapital() = replaceFirstChar { it.lowercase() }
