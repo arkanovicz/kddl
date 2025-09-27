@@ -81,3 +81,9 @@ afterEvaluate {
         }
     }
 }
+
+tasks {
+    withType<GenerateModuleMetadata> {
+        dependsOn(named("dokkaJar"))
+    }
+}
