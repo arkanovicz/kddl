@@ -12,7 +12,7 @@ NULL: 'null' ;
 TRUE: 'true' ;
 FALSE: 'false' ;
 BOOLEAN: 'boolean' ;
-BIGINT: 'bigint' ;
+BIGINT: 'bigint'  ( 'eger' )? ;
 INT: 'int' ( 'eger' )? ;
 SMALLINT: 'smallint' ( 'eger' )? ;
 SERIAL: 'serial' ;
@@ -34,6 +34,7 @@ BLOB: 'blob' ;
 ENUM: 'enum' ;
 UUID: 'uuid' ;
 JSON: 'json' | 'jsonb' ;
+VARBIT: 'varbit' ;
 CASCADE: 'cascade' ;
 OPTION: 'option' ;
 

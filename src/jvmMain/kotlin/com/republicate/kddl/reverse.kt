@@ -274,5 +274,6 @@ class ReverseEngineer(val url: String) {
         "uuid" to "uuid",
         "json" to "json",
         "jsonb" to "json",
+        "varbit" to "varbit"
     )
 }

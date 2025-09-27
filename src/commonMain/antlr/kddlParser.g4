@@ -30,7 +30,8 @@ type: BOOLEAN
     | BLOB
     | ENUM LP value=STRING ( CM? value=STRING )* RP
     | UUID
-    | JSON ;
+    | JSON
+    | VARBIT ( LP ( width=INTEGER )? RP )?,
 default: EQ expression ;
 expression: NULL | boolean | number | STRING | function ;
 boolean: TRUE | FALSE ;
