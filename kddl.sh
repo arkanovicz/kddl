@@ -71,6 +71,7 @@ cd "$DIR"
 #GRADLE_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5008" ./gradlew run -q -Pargs="$ARGS"
 # >&2 echo running ./gradlew run -q --args=\""$ARGS"\"
 
-./gradlew --stacktrace run -q -Pargs="$ARGS"
+#./gradlew --stacktrace run -q -Pargs="$ARGS"
+./gradlew run -q -Pargs="$ARGS"
 
 popd > /dev/null
