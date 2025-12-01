@@ -122,15 +122,66 @@ To do the reverse, aka generate the kddl model file from a running JDBC database
 kddl -i jdbc://...<jdbc URL with credentials> -f kddl > output.kddl
 ```
 
-## Installation (linux)
+## Build tool plugins
 
-## Prerequisites
+### Gradle plugin
+
+```kotlin
+plugins {
+    id("com.republicate.kddl") version "0.14"
+}
+
+kddl {
+    model.set(file("src/main/kddl/schema.kddl"))
+    sql.set(file("$buildDir/generated-resources/main/init.sql"))
+}
+```
+
+Then run:
+```shell
+./gradlew generateSQL
+```
+
+### Maven plugin
+
+```xml
+<plugin>
+    <groupId>com.republicate.kddl</groupId>
+    <artifactId>kddl-maven-plugin</artifactId>
+    <version>0.14</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>generate-sql</goal>
+            </goals>
+            <configuration>
+                <model>${project.basedir}/src/main/kddl/schema.kddl</model>
+                <sql>${project.build.directory}/generated-resources/kddl/init.sql</sql>
+                <format>POSTGRESQL</format>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+Available formats: `POSTGRESQL`, `HYPERSQL`, `PLANTUML`, `KDDL`
+
+Options:
+- `model` (required) — source .kddl file
+- `sql` — output file (default: `target/generated-resources/kddl/init.sql`)
+- `format` — output format (default: `POSTGRESQL`)
+- `quoted` — use quoted identifiers (default: `false`)
+- `uppercase` — use uppercase identifiers (default: `false`)
+
+## Installation (CLI)
+
+### Prerequisites
 
 You'll need to have `gradle` installed.
 
 ### Linux
 
-You first need to clone this repository and launch the `install.sh` script, which will build and install the kddl library in your local maven repository.
+Clone and build:
 
 ```shell
 git clone https://github.com/arkanovicz/kddl.git
@@ -138,7 +189,7 @@ cd kddl
 ./install.sh
 ```
 
-To install the `kddl` command everywhere, assuming that `~/bin` is in your path, do:
+To install the `kddl` command everywhere, assuming that `~/bin` is in your path:
 
 ```shell
 ln -s ~/<path_to_kddl_repository>/kddl.sh ~/bin/kddl
@@ -151,19 +202,19 @@ Please adapt the installation and run scripts.
 ## Building
 
 ```
-$ ./gradlew build
+./gradlew build
 ```
 
 ## TODO
 
 - document library usage
-- plugin for maven
-- db versionning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
+- wire SQL→KDDL reverse engineering to CLI (Calcite parser available in JVM)
+- db versioning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
 - custom types
 - more tests (for instance: inheritance from another schema's table)
 - align fields (add a space if no field prefix)
 - kddl files inclusions
-- support enum(foo,bar) (without quotes) or juste foo|bar
+- support enum(foo,bar) (without quotes) or just foo|bar
 - support merging of relations like: Service *--* Carrier --* User
 - handle enum names collisions
 - option to reset target schema or not
