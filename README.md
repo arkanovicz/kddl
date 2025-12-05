@@ -216,8 +216,9 @@ Please adapt the installation and run scripts.
 - kddl files inclusions
 - support enum(foo,bar) (without quotes) or just foo|bar
 - support merging of relations like: Service *--* Carrier --* User
-- handle enum names collisions
+- handle enum names collisions (=> error if values are not the same, factorized otherwise)
 - option to reset target schema or not
+- allow alternate prefix characters to be able to define several orthogonal keys
 
 ## limitations
 
