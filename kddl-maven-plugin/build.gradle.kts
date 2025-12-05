@@ -42,6 +42,7 @@ afterEvaluate {
             create<MavenPublication>("kddl-maven-plugin") {
                 from(components["java"])
                 artifact(tasks["sourcesJar"])
+                artifact(tasks["dokkaJar"])
                 pom {
                     name.set("kddl-maven-plugin")
                     description.set("kddl-maven-plugin $version - Maven plugin to generate SQL database creation scripts from KDDL model file")

@@ -24,13 +24,6 @@ dependencies {
     testImplementation(gradleTestKit())
 }
 
-tasks {
-    register<Jar>("sourcesJar") {
-        archiveClassifier.set("sources")
-        dependsOn("classes")
-        from(sourceSets["main"].allSource)
-    }
-}
 
 gradlePlugin {
     website = "https://github.com/arkanovicz/kddl"
@@ -47,43 +40,40 @@ gradlePlugin {
     }
 }
 
+fun MavenPom.configureCommonPom() {
+    name.set("kddl-gradle-plugin")
+    description.set("kddl-gradle-plugin $version - Gradle plugin to generate SQL database creation scripts from KDDL model file")
+    url.set("https://github.com/arkanovicz/kddl")
+    licenses {
+        license {
+            name.set("The Apache Software License, Version 2.0")
+            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+        }
+    }
+    developers {
+        developer {
+            name.set("Claude Brisson")
+            email.set("claude.brisson@gmail.com")
+            organization.set("republicate.com")
+            organizationUrl.set("https://republicate.com")
+        }
+    }
+    scm {
+        connection.set("scm:git@github.com:arkanovicz/kddl.git")
+        url.set("https://github.com/arkanovicz/kddl")
+    }
+}
+
 afterEvaluate {
     publishing {
         publications {
-            create<MavenPublication>("kddl-gradle-plugin") {
-                from(components["java"])
-                pom {
-                    name.set("kddl-gradle-plugin")
-                    description.set("kddl-gradle-plugin $version - Gradle plugin to generates SQL database creation scripts from KDDL model file")
-                    url.set("https://github.com/arkanovicz/kddl")
-                    licenses {
-                        license {
-                            name.set("The Apache Software License, Version 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                        }
-                    }
-                    developers {
-                        developer {
-                            name.set("Claude Brisson")
-                            email.set("claude.brisson@gmail.com")
-                            organization.set("republicate.com")
-                            organizationUrl.set("https://republicate.com")
-                        }
-                    }
-                    scm {
-                        connection.set("scm:git@github.com:arkanovicz/kddl.git")
-                        url.set("https://github.com/arkanovicz/kddl")
-                    }
-                }
-                artifact(tasks["dokkaJar"])
-                artifact(tasks["sourcesJar"])
+            named<MavenPublication>("pluginMaven") {
+                pom { configureCommonPom() }
+            }
+            named<MavenPublication>("KddlPluginPluginMarkerMaven") {
+                pom { configureCommonPom() }
             }
         }
     }
 }
 
-tasks {
-    withType<GenerateModuleMetadata> {
-        dependsOn(named("dokkaJar"))
-    }
-}
