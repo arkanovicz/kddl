@@ -128,7 +128,7 @@ kddl -i jdbc://...<jdbc URL with credentials> -f kddl > output.kddl
 
 ```kotlin
 plugins {
-    id("com.republicate.kddl") version "0.14"
+    id("com.republicate.kddl") version "0.15"
 }
 
 kddl {
@@ -148,7 +148,7 @@ Then run:
 <plugin>
     <groupId>com.republicate.kddl</groupId>
     <artifactId>kddl-maven-plugin</artifactId>
-    <version>0.14</version>
+    <version>0.15</version>
     <executions>
         <execution>
             <goals>
