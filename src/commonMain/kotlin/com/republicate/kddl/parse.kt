@@ -35,7 +35,7 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
             schema.tables[table.name] = table
             for (astField in astTable.field()) {
                 // field
-                val fieldName = astField.name!!.text!!
+                val fieldName = astField.name!!.text
                 val reference = database.resolveTable(schema, astField.reference)
                 val pk = astField.pk != null
                 val nonNull = astField.optional == null
