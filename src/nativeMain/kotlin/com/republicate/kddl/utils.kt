@@ -13,9 +13,7 @@ import platform.posix.fopen
 @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 actual object Utils {
 
-    actual fun getResource(path: String): CharStream {
-        TODO("Not implemented (reading resource $path)")
-    }
+    actual fun getResource(path: String): CharStream = getFile(path)
 
     actual fun getFile(path: String): CharStream = CharStreams.fromString(readAllText(path), path)
 

@@ -9,7 +9,7 @@
 database example {
 
   // options
-  option id_suffix = '_id' // sill WIP
+  option id_suffix = '_id' // still WIP
 
   // a schema contains tables and links
   schema geo {

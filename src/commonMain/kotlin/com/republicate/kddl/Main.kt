@@ -24,7 +24,8 @@ class KddlProcessor(
     val format: Format,
     val driver: String? = null,
     val uppercase: Boolean = false,
-    val quoted: Boolean = false) {
+    val quoted: Boolean = false,
+    val fromResource: Boolean = false) {
 
     fun process(): String {
         val tree = when {
@@ -34,7 +35,7 @@ class KddlProcessor(
             }
 
             else -> {
-                val ddl = Utils.getFile(input)
+                val ddl = if (fromResource) Utils.getResource(input) else Utils.getFile(input)
                 parse(ddl)
             }
         }
