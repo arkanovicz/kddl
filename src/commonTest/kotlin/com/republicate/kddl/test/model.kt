@@ -21,4 +21,11 @@ class KDDLTest {
         val expected = getTestResource("model.postgresql")
         assertEquals(expected, actual)
     }
+
+    @Test
+    fun testTimestampTypes() = runTest {
+        val actual = KddlProcessor("types.kddl", Format.POSTGRESQL).process()
+        val expected = getTestResource("types.postgresql")
+        assertEquals(expected, actual)
+    }
 }

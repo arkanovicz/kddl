@@ -152,7 +152,11 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quo
         "long" to "bigint",
         "float" to "real",
         "double" to "double precision",
-        "blob" to "bytea"
+        "blob" to "bytea",
+        "datetime" to "timestamp",
+        "datetimetz" to "timestamptz",
+        "datetime_tz" to "timestamptz",
+        "timestamp_tz" to "timestamptz"
     )
 
     override fun mapType(type: String) = typeMap[type]

@@ -1,0 +1,11 @@
+database types {
+  schema test {
+    table timestamps {
+      *id serial
+      created datetime = now()
+      updated timestamp?
+      expires datetimetz?
+      scheduled timestamp_tz?
+    }
+  }
+}
