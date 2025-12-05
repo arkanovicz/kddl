@@ -40,7 +40,7 @@ Here's the `example.kddl` file, which should be enough to understand the syntax 
 // Supported data types:
 //   boolean, integer, bigint, serial, long, float, double, numeric(*n*,*p*), money,
 //   time, timetz, date, timestamp, timestamptz, char, char(*n), varchar(*n*), text,
-//   enum( 'value1' [,] 'value2' ...), blob, clob
+//   enum( 'value1' [,] 'value2' ...), blob, clob, varbit
 
 // a database contains options and schemas
 database geo {
@@ -219,6 +219,7 @@ Please adapt the installation and run scripts.
 - handle enum names collisions (=> error if values are not the same, factorized otherwise)
 - option to reset target schema or not
 - allow alternate prefix characters to be able to define several orthogonal keys
+- backstitched identifiers support
 
 ## limitations
 
