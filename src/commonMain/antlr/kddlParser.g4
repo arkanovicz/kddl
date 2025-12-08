@@ -7,7 +7,7 @@ schema: SCHEMA name=LABEL LC ( table | link )* RC ;
 table: TABLE name=LABEL ( FS par=qualified direction? )? ( LC field* RC )?;
 direction: LP ( UP | DOWN | LEFT | RIGHT ) RP;
 link: left=qualified ( left_optional=QM )? ( left_mult=ST | left_single=LA )? MN+ ( right_mult=ST | right_single=RA )? right=qualified ( right_optional=QM )? CASCADE? direction? ;
-field: ( pk=ST | unique=EM | indexed=PL )? name=identifier (type ( optional=QM )? default? | default | MN+ RA reference=qualified ( optional=QM )? CASCADE? direction? ) ;
+field: ( pk=ST | unique=EM | indexed=PL )? name=identifier (type ( optional=QM )? ( AS alias=LABEL )? default? | default | MN+ RA reference=qualified ( optional=QM )? CASCADE? direction? ) ;
 identifier: LABEL | BOOLEAN | BIGINT | INT | SMALLINT | SERIAL | LONG | FLOAT | DOUBLE
           | MONEY | NUMERIC | TIME | TIMETZ | DATE | TIMESTAMP | TIMESTAMPTZ | INTERVAL
           | CHAR | VARCHAR | TEXT | BLOB | ENUM | UUID | JSON | VARBIT ;

@@ -66,7 +66,8 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                     if (type == null) {
                         throw SemanticException("type not found for field: ${astField.text}")
                     }
-                    ASTField(table, fieldName, type, pk, nonNull, unique, indexed, default)
+                    val alias = astField.alias?.text
+                    ASTField(table, fieldName, type, pk, nonNull, unique, indexed, default, alias)
                 } else {
                     // link field
                     val refPk = reference.getOrCreatePrimaryKey()

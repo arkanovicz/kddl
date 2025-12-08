@@ -36,6 +36,7 @@ UUID: 'uuid' ;
 JSON: 'json' | 'jsonb' ;
 VARBIT: 'varbit' ;
 CASCADE: 'cascade' ;
+AS: 'as' ;
 OPTION: 'option' ;
 
 // values

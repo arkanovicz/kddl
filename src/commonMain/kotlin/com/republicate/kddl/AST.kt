@@ -111,6 +111,7 @@ class ASTField(
     val unique : Boolean = false,
     val indexed: Boolean = false,
     val default : Any? = null,
+    val alias : String? = null,
     ) : DBObject(name) {
     companion object {
         fun isTextType(type: String): Boolean {
@@ -208,6 +209,6 @@ fun ASTSchema.table(name : String, content : ASTTable.() -> Unit) : ASTTable {
     return ASTTable(this, name).also { tables[name] = it }.apply(content)
 }
 
-fun ASTTable.field(name : String, type : String, primaryKey: Boolean = false, nonNull : Boolean = true, unique : Boolean = false, indexed : Boolean = false, default : Any? = null) : ASTField {
-    return ASTField(this, name, type, primaryKey, nonNull, unique, indexed, default).also {fields[name] = it }
+fun ASTTable.field(name : String, type : String, primaryKey: Boolean = false, nonNull : Boolean = true, unique : Boolean = false, indexed : Boolean = false, default : Any? = null, alias : String? = null) : ASTField {
+    return ASTField(this, name, type, primaryKey, nonNull, unique, indexed, default, alias).also {fields[name] = it }
 }
