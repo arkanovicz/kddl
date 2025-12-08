@@ -1,14 +1,32 @@
 ﻿# kddl
 
-Kddl is intended to be a Swiss army knife for database models.
+Kddl is a Swiss army knife for database models. Define your schema once, generate everything else (documentation, SQL scripts, code).
 
-It takes a model or a running datasource as input, and an output format (current valid outputs are postgresql, kddl and plantuml).
+Kddl can be used as a CLI tool, a library, a Gradle plugin, or a Maven plugin. It is multiplatform (jvm, js, linux, macos, windows).
 
-Kddl is multiplaform (jvm, js, native) and can be used as a standalone application or as a library. The reverse engineering feature is only available on the jvm platform for now.
+```
 
-This tool is fully functional but is still in its infancy, it should gain many more features and formats over time. If you try it, be sure to give some feedback!
 
-## Usage
+                                    ┌─────────────┐
+                                ┌──>│ PostgreSQL  │
+                                │   └─────────────┘
+                                │   ┌─────────────┐
+ ┌─────────────┐                ├──>│  HyperSQL   │
+ │  .kddl file │───┐            │   └─────────────┘
+ └─────────────┘   │   ┌──────┐ │   ┌─────────────┐
+                   ├──>│ kddl │─┼──>│  PlantUML   │
+ ┌─────────────┐   │   └──────┘ │   └─────────────┘
+ │ JDBC source │───┘            │   ┌─────────────┐
+ └─────────────┘                ├──>│    KDDL     │
+    (jvm only)                  │   └─────────────┘
+                                │   ┌─────────────┐
+                                └──>│   Kotlin    │ (with skorm plugin)
+                                    └─────────────┘
+```
+
+This tool is fully functional but still maturing. If you try it, be sure to give some feedback!
+
+## CLI Usage
 
 ```
 kddl [OPTIONS] > [output_file]
@@ -39,8 +57,8 @@ Here's the `example.kddl` file, which should be enough to understand the syntax 
 
 // Supported data types:
 //   boolean, integer, bigint, serial, long, float, double, numeric(*n*,*p*), money,
-//   time, timetz, date, timestamp, timestamptz, char, char(*n), varchar(*n*), text,
-//   enum( 'value1' [,] 'value2' ...), blob, clob, varbit
+//   time, timetz, date, timestamp, timestamptz, interval, char, char(*n*), varchar(*n*), text,
+//   enum( 'value1' [,] 'value2' ...), uuid, json, blob, clob, varbit
 
 // a database contains options and schemas
 database geo {
@@ -82,7 +100,7 @@ database geo {
 
     table location {
       name varchar(50) = 'untitled'    // string literals use single quotes
-      nature enum('depart', 'arrival') // enum types
+      nature enum('depart', 'arrival') as LocationNature // enum with custom type name
       address text?
     }
 
@@ -128,7 +146,7 @@ kddl -i jdbc://...<jdbc URL with credentials> -f kddl > output.kddl
 
 ```kotlin
 plugins {
-    id("com.republicate.kddl") version "0.15"
+    id("com.republicate.kddl") version "0.16"
 }
 
 kddl {
@@ -148,7 +166,7 @@ Then run:
 <plugin>
     <groupId>com.republicate.kddl</groupId>
     <artifactId>kddl-maven-plugin</artifactId>
-    <version>0.15</version>
+    <version>0.16</version>
     <executions>
         <execution>
             <goals>
@@ -208,7 +226,7 @@ Please adapt the installation and run scripts.
 ## TODO
 
 - document library usage
-- wire SQL→KDDL reverse engineering to CLI (Calcite parser available in JVM)
+- wire SQL→KDDL reverse engineering (Calcite parser available in JVM)
 - db versioning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
 - custom types
 - more tests (for instance: inheritance from another schema's table)
