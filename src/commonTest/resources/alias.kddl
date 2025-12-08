@@ -1,0 +1,17 @@
+// Test for enum alias syntax
+// Grammar order: type optional? alias? default?
+database aliasdb {
+  schema test {
+    table game {
+      *id serial
+      // enum without alias - should use field name
+      status enum('pending','active','completed')
+      // enum with alias - should use alias
+      mode enum('human','bot') as GameMode
+      // enum with alias and default
+      difficulty enum('easy','medium','hard') as DifficultyLevel = 'medium'
+      // nullable enum with alias (? comes before 'as')
+      result enum('win','loss','draw')? as GameResult
+    }
+  }
+}
