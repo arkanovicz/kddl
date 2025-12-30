@@ -44,7 +44,7 @@ database example {
 
     table location {
       name varchar(50) = 'untitled'    // string literals use single quotes
-      nature enum('depart', 'arrival') // enum types
+      nature enum('depart', 'arrival') as LocationType // enum with optional named type alias
       address text?
     }
 
