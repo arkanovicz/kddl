@@ -17,10 +17,23 @@ open class ASTDatabase(name : String) : DBObject(name) {
     }
 }
 
+class ASTEnum(val schema: ASTSchema, name: String, val values: List<String>) : DBObject(name) {
+    override fun display(indent: String, builder: StringBuilder): StringBuilder {
+        builder.append("${indent}enum $name(")
+        builder.append(values.joinToString(", ") { "'$it'" })
+        builder.appendLine(")")
+        return builder
+    }
+}
+
 class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
+    val enums = mutableMapOf<String, ASTEnum>()
     val tables = mutableMapOf<String, ASTTable>()
     override fun display(indent: String, builder: StringBuilder): StringBuilder {
         builder.appendLine("${indent}schema $name {")
+        for (enum in enums.values) {
+            enum.display("$indent  ", builder)
+        }
         for (table in tables.values) {
             table.display("$indent  ", builder)
         }

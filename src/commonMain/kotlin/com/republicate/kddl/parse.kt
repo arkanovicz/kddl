@@ -29,6 +29,15 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
         // schema
         val schema = ASTSchema(database, astSchema.name!!.text!!)
         database.schemas[schema.name] = schema
+        // enums (must be parsed before tables to allow references)
+        for (astEnum in astSchema.enum_decl()) {
+            val enumName = astEnum.name!!.text!!
+            val values = astEnum.enum_value().map {
+                it.STRING()?.text?.removeSurrounding("'") ?: it.LABEL()!!.text!!
+            }
+            val enum = ASTEnum(schema, enumName, values)
+            schema.enums[enumName] = enum
+        }
         for (astTable in astSchema.table()) {
             // table
             val table = ASTTable(schema, astTable.name!!.text!!, database.resolveTable(schema, astTable.par), astTable.direction()?.text ?: "")
@@ -55,7 +64,19 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                             else -> throw SemanticException("invalid default value: ${astDefault.text}")
                         }
                     }
-                    var type = astField.type()?.text
+                    var type: String? = null
+                    val astType = astField.type()
+                    if (astType != null) {
+                        val enumRef = astType.enum_ref?.text
+                        if (enumRef != null) {
+                            // resolve enum reference
+                            val enum = schema.enums[enumRef]
+                                ?: throw SemanticException("enum not found: $enumRef")
+                            type = "enum(${enum.values.joinToString(",") { "'$it'" }})"
+                        } else {
+                            type = astType.text
+                        }
+                    }
                     if (type == null) {
                         // This section is a work in progress
                         if (astDefault?.STRING() != null) type = "varchar"

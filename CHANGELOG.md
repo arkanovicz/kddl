@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17
+- Add standalone enum declarations: `enum name { val1, val2 }` or `enum name('val1', 'val2')`
+- Enums can be referenced by name in field types
+
 ## 0.16
 - Add `as` alias syntax for enum type naming: `mode enum('a','b') as MyMode`
 - Add comprehensive test coverage (31 tests)

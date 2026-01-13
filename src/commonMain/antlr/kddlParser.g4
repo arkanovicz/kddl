@@ -3,7 +3,9 @@ parser grammar kddlParser;
 options { tokenVocab = kddlLexer; }
 
 database: DATABASE name=LABEL LC ( schema | link | option ) * RC ;
-schema: SCHEMA name=LABEL LC ( table | link )* RC ;
+schema: SCHEMA name=LABEL LC ( enum_decl | table | link )* RC ;
+enum_decl: ENUM name=LABEL ( LP enum_value ( CM? enum_value )* RP | LC enum_value ( CM? enum_value )* RC ) ;
+enum_value: STRING | LABEL ;
 table: TABLE name=LABEL ( FS par=qualified direction? )? ( LC field* RC )?;
 direction: LP ( UP | DOWN | LEFT | RIGHT ) RP;
 link: left=qualified ( left_optional=QM )? ( left_mult=ST | left_single=LA )? MN+ ( right_mult=ST | right_single=RA )? right=qualified ( right_optional=QM )? CASCADE? direction? ;
@@ -34,7 +36,8 @@ type: BOOLEAN
     | ENUM LP value=STRING ( CM? value=STRING )* RP
     | UUID
     | JSON
-    | VARBIT ( LP ( width=INTEGER )? RP )? ;
+    | VARBIT ( LP ( width=INTEGER )? RP )?
+    | enum_ref=LABEL ;
 default: EQ expression ;
 expression: NULL | boolean | number | STRING | function ;
 boolean: TRUE | FALSE ;
