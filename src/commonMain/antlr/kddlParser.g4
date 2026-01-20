@@ -4,7 +4,7 @@ options { tokenVocab = kddlLexer; }
 
 database: DATABASE name=LABEL LC ( schema | link | option ) * RC ;
 schema: SCHEMA name=LABEL LC ( enum_decl | table | link )* RC ;
-enum_decl: ENUM name=LABEL ( LP enum_value ( CM? enum_value )* RP | LC enum_value ( CM? enum_value )* RC ) ;
+enum_decl: ENUM name=LABEL LP enum_value ( CM? enum_value )* RP ;
 enum_value: STRING | LABEL ;
 table: TABLE name=LABEL ( FS par=qualified direction? )? ( LC field* RC )?;
 direction: LP ( UP | DOWN | LEFT | RIGHT ) RP;
@@ -35,7 +35,7 @@ type: BOOLEAN
     | VARCHAR ( LP ( width=INTEGER )? RP )?
     | TEXT
     | BLOB
-    | ENUM LP value=STRING ( CM? value=STRING )* RP
+    | ENUM LP enum_value ( CM? enum_value )* RP
     | UUID
     | JSON
     | VARBIT ( LP ( width=INTEGER )? RP )?

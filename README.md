@@ -58,7 +58,7 @@ Here's the `example.kddl` file, which should be enough to understand the syntax 
 // Supported data types:
 //   boolean, integer, bigint, serial, long, float, double, numeric(*n*,*p*), money,
 //   time, timetz, date, timestamp, timestamptz, interval, char, char(*n*), varchar(*n*), text,
-//   enum( 'value1' [,] 'value2' ...), uuid, json, blob, clob, varbit
+//   enum(value1, value2, ...) or enum('value1', 'value2', ...), uuid, json, blob, clob, varbit
 
 // a database contains options and schemas
 database geo {
@@ -66,8 +66,12 @@ database geo {
   // a schema contains tables and links
   schema infra {
 
+    // standalone enum declaration (values can be quoted or unquoted)
+    enum zone_type(urban, rural, industrial)
+
     // a table contains fields, either given a type or a destination table
     table zone {
+      type zone_type              // reference to declared enum
       *code varchar(10)      // '*' stands for 'part of pk', otherwise pk is generated as needed
       !name varchar(50)       // '!' stands for unique
       description text?      // '?' stands for nullable field
@@ -242,7 +246,6 @@ Please adapt the installation and run scripts.
 - more tests (for instance: inheritance from another schema's table)
 - align fields (add a space if no field prefix)
 - kddl files inclusions
-- support enum(foo,bar) (without quotes) or just foo|bar
 - handle enum names collisions (=> error if values are not the same, factorized otherwise)
 - option to reset target schema or not
 - allow alternate prefix characters to be able to define several orthogonal keys

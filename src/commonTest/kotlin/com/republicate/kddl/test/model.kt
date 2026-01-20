@@ -184,6 +184,85 @@ class AliasTest {
     }
 }
 
+class EnumTest {
+
+    @Test
+    fun testStandaloneEnumUnquoted() {
+        val ddl = """
+            database test {
+              schema s {
+                enum status(pending, active, completed)
+                table task {
+                  *id serial
+                  status status
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val schema = db.schemas["s"]!!
+        // Enum should be parsed
+        val enum = schema.enums["status"]!!
+        assertEquals(listOf("pending", "active", "completed"), enum.values)
+        // Field should reference the enum
+        val field = schema.tables["task"]!!.fields["status"]!!
+        assertEquals("enum('pending','active','completed')", field.type)
+    }
+
+    @Test
+    fun testStandaloneEnumQuoted() {
+        val ddl = """
+            database test {
+              schema s {
+                enum priority('low', 'medium', 'high')
+                table task {
+                  *id serial
+                  priority priority
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val enum = db.schemas["s"]!!.enums["priority"]!!
+        assertEquals(listOf("low", "medium", "high"), enum.values)
+    }
+
+    @Test
+    fun testInlineEnumUnquoted() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  status enum(pending, active, completed)
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val field = db.schemas["s"]!!.tables["t"]!!.fields["status"]!!
+        // Should be normalized to quoted values
+        assertEquals("enum('pending','active','completed')", field.type)
+    }
+
+    @Test
+    fun testInlineEnumQuoted() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  status enum('a', 'b', 'c')
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val field = db.schemas["s"]!!.tables["t"]!!.fields["status"]!!
+        assertEquals("enum('a','b','c')", field.type)
+    }
+}
+
 class FieldModifiersTest {
 
     @Test

@@ -73,6 +73,12 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
                             val enum = schema.enums[enumRef]
                                 ?: throw SemanticException("enum not found: $enumRef")
                             type = "enum(${enum.values.joinToString(",") { "'$it'" }})"
+                        } else if (astType.enum_value().isNotEmpty()) {
+                            // inline enum - normalize to quoted values
+                            val values = astType.enum_value().map {
+                                it.STRING()?.text?.removeSurrounding("'") ?: it.LABEL()!!.text!!
+                            }
+                            type = "enum(${values.joinToString(",") { "'$it'" }})"
                         } else {
                             type = astType.text
                         }

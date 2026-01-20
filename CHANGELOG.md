@@ -1,8 +1,9 @@
 # Changelog
 
 ## 0.17
-- Add standalone enum declarations: `enum name { val1, val2 }` or `enum name('val1', 'val2')`
+- Add standalone enum declarations: `enum name(val1, val2)` with optional quotes
 - Enums can be referenced by name in field types
+- Allow unquoted enum values in both standalone and inline declarations
 - Add UML one-liner chain syntax: `A *--* B --* C` for relation declarations
 - KDDL output now generates chains from relations, hiding join tables
 
