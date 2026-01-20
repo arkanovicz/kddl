@@ -105,16 +105,12 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
             }
         }
         for (astLink in astSchema.link()) {
-            val left = database.resolveTable(schema, astLink.left) ?: throw SemanticException("left table not found") // should not happen
-            val right = database.resolveTable(schema, astLink.right) ?: throw SemanticException("right table not found") // should not happen
-            processLink(astLink, left, right)
+            processLinkChain(astLink, database, schema)
         }
     }
     // root links
     for (astLink in astDatabase.link()) {
-        val left = database.resolveTable(astLink.left) ?: throw SemanticException("left table not found") // should not happen
-        val right = database.resolveTable(astLink.right) ?: throw SemanticException("right table not found") // should not happen
-        processLink(astLink, left, right)
+        processLinkChain(astLink, database, null)
     }
     // options
     for (astOption in astDatabase.option()) {
@@ -123,12 +119,39 @@ fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
     return database
 }
 
-fun processLink(astLink: kddlParser.LinkContext, left: ASTTable, right: ASTTable) {
-    val leftMult = astLink.left_mult != null || astLink.right_single != null // || astLink.left_single == null
-    val rightMult = astLink.right_mult != null || astLink.left_single != null // || astLink.right_single == null
-    val leftNoNull = astLink.left_optional == null
-    val rightNoNull = astLink.right_optional == null
+fun processLinkChain(astLink: kddlParser.LinkContext, database: ASTDatabase, defSchema: ASTSchema?) {
+    val elements = astLink.linkElement()
+    val connectors = astLink.connector()
+    val cascade = astLink.CASCADE() != null
+
+    // Iterate through pairs: (element[i], connector[i], element[i+1])
+    for (i in connectors.indices) {
+        val leftElem = elements[i]
+        val rightElem = elements[i + 1]
+        val conn = connectors[i]
+
+        val left = database.resolveTable(defSchema, leftElem.ref) ?: throw SemanticException("table not found: ${leftElem.text}")
+        val right = database.resolveTable(defSchema, rightElem.ref) ?: throw SemanticException("table not found: ${rightElem.text}")
+
+        processLinkPair(left, leftElem.optional != null, conn, right, rightElem.optional != null, cascade)
+    }
+}
+
+fun processLinkPair(
+    left: ASTTable,
+    leftOptional: Boolean,
+    conn: kddlParser.ConnectorContext,
+    right: ASTTable,
+    rightOptional: Boolean,
+    cascade: Boolean
+) {
+    val leftMult = conn.left_mult != null || conn.right_single != null
+    val rightMult = conn.right_mult != null || conn.left_single != null
+    val leftNoNull = !leftOptional
+    val rightNoNull = !rightOptional
+
     if (leftMult && rightMult) {
+        // Many-to-many: create join table
         val linkTable = ASTTable(left.schema, "${left.name}_${right.name}")
         left.schema.tables[linkTable.name] = linkTable
         arrayOf(left, right).forEach {
@@ -141,8 +164,8 @@ fun processLink(astLink: kddlParser.LinkContext, left: ASTTable, right: ASTTable
             val fk = ASTForeignKey(linkTable, fkFields, it, true, false, true)
             linkTable.foreignKeys.add(fk)
         }
-        left.schema.tables[linkTable.name] = linkTable
     } else if (leftMult || rightMult) {
+        // One-to-many
         val pkTable = if (leftMult) right else left
         val fkTable = if (leftMult) left else right
         val nonNull = if (leftMult) rightNoNull else leftNoNull
@@ -162,7 +185,6 @@ fun processLink(astLink: kddlParser.LinkContext, left: ASTTable, right: ASTTable
                 throw SemanticException("link ${fkTable.name} -> ${pkTable.name}: incompatible fk/pk field types")
             fkField
         }.toSet()
-        val cascade = astLink.CASCADE() != null
         val fk = ASTForeignKey(from=fkTable, fields=fkFields, towards=pkTable, nonNull=nonNull, false, cascade)
         fkTable.foreignKeys.add(fk)
     }

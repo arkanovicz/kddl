@@ -526,6 +526,120 @@ class LinkTest {
         assertTrue(employee.foreignKeys.isNotEmpty())
         assertEquals("department", employee.foreignKeys.first().towards.name)
     }
+
+    @Test
+    fun testLinkChain() {
+        // A *--* B --* C: many-to-many between A and B, one-to-many from B to C
+        val ddl = """
+            database test {
+              schema s {
+                table author {
+                  *author_id serial
+                  name varchar(100)
+                }
+                table book {
+                  *book_id serial
+                  title varchar(200)
+                }
+                table chapter {
+                  *chapter_id serial
+                  title varchar(100)
+                }
+                author *--* book --* chapter
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val schema = db.schemas["s"]!!
+
+        // Join table for author *--* book
+        assertTrue(schema.tables.containsKey("author_book"))
+        val joinTable = schema.tables["author_book"]!!
+        assertEquals(2, joinTable.foreignKeys.size)
+
+        // FK on chapter for book --* chapter
+        val chapter = schema.tables["chapter"]!!
+        assertTrue(chapter.foreignKeys.isNotEmpty())
+        assertEquals("book", chapter.foreignKeys.first().towards.name)
+    }
+
+    @Test
+    fun testLinkChainWithOptional() {
+        // A? *--* B? --* C: nullable FKs
+        val ddl = """
+            database test {
+              schema s {
+                table category {
+                  *category_id serial
+                  name varchar(100)
+                }
+                table product {
+                  *product_id serial
+                  name varchar(100)
+                }
+                table review {
+                  *review_id serial
+                  content text
+                }
+                category? *--* product? --* review
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val schema = db.schemas["s"]!!
+
+        // Join table created
+        assertTrue(schema.tables.containsKey("category_product"))
+
+        // FK on review should be nullable (product? makes it optional)
+        val review = schema.tables["review"]!!
+        assertTrue(review.foreignKeys.isNotEmpty())
+        val fk = review.foreignKeys.first()
+        assertEquals("product", fk.towards.name)
+        assertFalse(fk.nonNull)  // Should be nullable because product?
+    }
+
+    @Test
+    fun testLongLinkChain() {
+        // A --* B --* C --* D: cascading one-to-many
+        val ddl = """
+            database test {
+              schema s {
+                table company {
+                  *company_id serial
+                  name varchar(100)
+                }
+                table department {
+                  *department_id serial
+                  name varchar(100)
+                }
+                table team {
+                  *team_id serial
+                  name varchar(50)
+                }
+                table employee {
+                  *employee_id serial
+                  name varchar(100)
+                }
+                company --* department --* team --* employee
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val schema = db.schemas["s"]!!
+
+        // department has FK to company
+        val department = schema.tables["department"]!!
+        assertEquals("company", department.foreignKeys.first().towards.name)
+
+        // team has FK to department
+        val team = schema.tables["team"]!!
+        assertEquals("department", team.foreignKeys.first().towards.name)
+
+        // employee has FK to team
+        val employee = schema.tables["employee"]!!
+        assertEquals("team", employee.foreignKeys.first().towards.name)
+    }
 }
 
 class TypesTest {

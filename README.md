@@ -86,6 +86,10 @@ database geo {
     }
 
     city *--> department (up) // plantuml arrow direction can be specified
+
+    // UML one-liner chains: declares multiple relations in one statement
+    // company --* department --* team --* employee
+    // equivalent to: company --* department ; department --* team ; team --* employee
   }
 
   schema client {
@@ -107,6 +111,12 @@ database geo {
     location *--> contact    // will generate the implicit "contact_id serial" primary key in contact
     location *--> infra.zone // foreign key referencing a table in another schema
 
+    // Chain syntax with nullable markers:
+    // category? *--* product? --* review
+    // The '?' after a table makes FKs involving that table nullable
+    // For finer control, use separate declarations:
+    // category *--* product?
+    // product --* review
   }
 
 }
@@ -233,7 +243,6 @@ Please adapt the installation and run scripts.
 - align fields (add a space if no field prefix)
 - kddl files inclusions
 - support enum(foo,bar) (without quotes) or just foo|bar
-- support merging of relations like: Service *--* Carrier --* User
 - handle enum names collisions (=> error if values are not the same, factorized otherwise)
 - option to reset target schema or not
 - allow alternate prefix characters to be able to define several orthogonal keys
