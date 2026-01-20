@@ -4,10 +4,21 @@ abstract  class DBObject(val name : String) {
     abstract fun display(indent: String = "", builder: StringBuilder = StringBuilder()): StringBuilder
 }
 
+class ASTInclude(val path: String) : DBObject(path) {
+    override fun display(indent: String, builder: StringBuilder): StringBuilder {
+        builder.appendLine("${indent}include '$path'")
+        return builder
+    }
+}
+
 open class ASTDatabase(name : String) : DBObject(name) {
+    val includes = mutableListOf<ASTInclude>()
     val options = mutableMapOf<String, String>()
     val schemas = mutableMapOf<String, ASTSchema>()
     override fun display(indent: String, builder: StringBuilder): StringBuilder {
+        for (include in includes) {
+            include.display(indent, builder)
+        }
         builder.appendLine("${indent}database $name {")
         for (schema in schemas.values) {
             schema.display("$indent  ", builder)

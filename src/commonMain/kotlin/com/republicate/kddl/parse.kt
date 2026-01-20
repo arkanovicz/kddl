@@ -7,12 +7,21 @@ import org.antlr.v4.kotlinruntime.tree.Tree
 import org.antlr.v4.kotlinruntime.tree.Trees
 
 fun parse(ddl: CharStream, errorListener: ANTLRErrorListener = ConsoleErrorListener()): ASTDatabase {
+    return parse(ddl, null, mutableSetOf(), errorListener)
+}
+
+fun parse(
+    ddl: CharStream,
+    basePath: String?,
+    loadedFiles: MutableSet<String>,
+    errorListener: ANTLRErrorListener = ConsoleErrorListener()
+): ASTDatabase {
     val lexer = kddlLexer(ddl)
     val tokenStream = CommonTokenStream(lexer)
     val parser = kddlParser(tokenStream)
     parser.addErrorListener(errorListener)
     val root = parser.database()
-    return buildAst(root)
+    return buildAst(root, basePath, loadedFiles, errorListener)
 }
 
 // WIP
@@ -22,9 +31,41 @@ private fun String.returnType(): String = when (this) {
     else -> throw SemanticException("return type not known for function: ${this}")
 }
 
-fun buildAst(astDatabase : kddlParser.DatabaseContext) : ASTDatabase {
+fun buildAst(astDatabase: kddlParser.DatabaseContext): ASTDatabase =
+    buildAst(astDatabase, null, mutableSetOf(), ConsoleErrorListener())
+
+fun buildAst(
+    astDatabase: kddlParser.DatabaseContext,
+    basePath: String?,
+    loadedFiles: MutableSet<String>,
+    errorListener: ANTLRErrorListener
+): ASTDatabase {
     // database
     val database = ASTDatabase(astDatabase.name!!.text!!)
+
+    // Process includes first
+    for (astInclude in astDatabase.include_stmt()) {
+        val rawPath = astInclude.path!!.text!!.removeSurrounding("'")
+        val includePath = if (basePath != null) "$basePath/$rawPath" else rawPath
+        val normalizedPath = Utils.normalizePath(includePath)
+
+        // Check for circular dependency
+        if (normalizedPath in loadedFiles) {
+            throw SemanticException("circular include detected: $normalizedPath")
+        }
+        loadedFiles.add(normalizedPath)
+
+        // Record the include in AST
+        database.includes.add(ASTInclude(rawPath))
+
+        // Parse included file
+        val includeStream = Utils.getFile(includePath)
+        val includeBasePath = Utils.parentPath(includePath)
+        val includedDb = parse(includeStream, includeBasePath, loadedFiles, errorListener)
+
+        // Merge included database into this one
+        mergeDatabase(database, includedDb)
+    }
     for (astSchema in astDatabase.schema()) {
         // schema
         val schema = ASTSchema(database, astSchema.name!!.text!!)
@@ -227,4 +268,89 @@ class KDDLFormatter: Formatter {
     override fun format(asm: ASTTable, indent: String) = asm.display(indent).toString()
     override fun format(asm: ASTField, indent: String) = asm.display(indent).toString()
     override fun format(asm: ASTForeignKey, indent: String) = throw NotImplementedError("TODO")
+}
+
+/**
+ * Merge included database schemas into the target database.
+ * Schemas with the same name are merged (enums and tables combined).
+ * Conflicts (same-named enum/table in same schema) throw an error.
+ */
+private fun mergeDatabase(target: ASTDatabase, source: ASTDatabase) {
+    for ((schemaName, sourceSchema) in source.schemas) {
+        val targetSchema = target.schemas[schemaName]
+        if (targetSchema == null) {
+            // Create new schema in target with same name, linked to target database
+            val newSchema = ASTSchema(target, schemaName)
+            target.schemas[schemaName] = newSchema
+            // Copy enums (recreate with new schema reference)
+            for ((enumName, srcEnum) in sourceSchema.enums) {
+                val newEnum = ASTEnum(newSchema, enumName, srcEnum.values)
+                newSchema.enums[enumName] = newEnum
+            }
+            // Copy tables (recreate with new schema reference)
+            for ((tableName, srcTable) in sourceSchema.tables) {
+                copyTable(srcTable, newSchema)
+            }
+        } else {
+            // Merge into existing schema
+            for ((enumName, srcEnum) in sourceSchema.enums) {
+                if (enumName in targetSchema.enums) {
+                    throw SemanticException("duplicate enum in include: $schemaName.$enumName")
+                }
+                val newEnum = ASTEnum(targetSchema, enumName, srcEnum.values)
+                targetSchema.enums[enumName] = newEnum
+            }
+            for ((tableName, srcTable) in sourceSchema.tables) {
+                if (tableName in targetSchema.tables) {
+                    throw SemanticException("duplicate table in include: $schemaName.$tableName")
+                }
+                copyTable(srcTable, targetSchema)
+            }
+        }
+    }
+    // Merge options
+    for ((key, value) in source.options) {
+        if (key !in target.options) {
+            target.options[key] = value
+        }
+    }
+}
+
+/**
+ * Deep copy a table into a new schema, preserving fields and foreign keys.
+ */
+private fun copyTable(srcTable: ASTTable, targetSchema: ASTSchema): ASTTable {
+    // Handle parent table reference (must be in target schema or already copied)
+    val parent = srcTable.parent?.let {
+        targetSchema.tables[it.name]
+            ?: throw SemanticException("parent table not found during include: ${it.name}")
+    }
+    val newTable = ASTTable(targetSchema, srcTable.name, parent, srcTable.parentDirection)
+    targetSchema.tables[newTable.name] = newTable
+
+    // Copy fields
+    for ((fieldName, srcField) in srcTable.fields) {
+        val newField = ASTField(
+            newTable, fieldName, srcField.type,
+            srcField.primaryKey, srcField.nonNull, srcField.unique,
+            srcField.indexed, srcField.default, srcField.alias
+        )
+        newTable.fields[fieldName] = newField
+    }
+
+    // Copy foreign keys (resolve towards table in target database)
+    for (srcFk in srcTable.foreignKeys) {
+        val towardsSchema = targetSchema.db.schemas[srcFk.towards.schema.name]
+            ?: throw SemanticException("schema not found for FK: ${srcFk.towards.schema.name}")
+        val towardsTable = towardsSchema.tables[srcFk.towards.name]
+            ?: throw SemanticException("table not found for FK: ${srcFk.towards.name}")
+        val newFields = srcFk.fields.map { newTable.fields[it.name]!! }.toSet()
+        val newFk = ASTForeignKey(
+            newTable, newFields, towardsTable,
+            srcFk.nonNull, srcFk.unique, srcFk.cascade, srcFk.direction
+        )
+        newTable.foreignKeys.add(newFk)
+    }
+
+    return newTable
 }

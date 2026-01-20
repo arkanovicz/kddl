@@ -28,4 +28,12 @@ actual object Utils {
             path
         )
     }
+
+    actual fun normalizePath(path: String): String {
+        return File(path).canonicalPath
+    }
+
+    actual fun parentPath(path: String): String? {
+        return File(path).parentFile?.path
+    }
 }

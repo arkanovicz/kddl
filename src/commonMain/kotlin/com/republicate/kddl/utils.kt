@@ -5,6 +5,8 @@ import org.antlr.v4.kotlinruntime.CharStream
 expect object Utils {
     fun getResource(path: String): CharStream
     fun getFile(path: String): CharStream
+    fun normalizePath(path: String): String
+    fun parentPath(path: String): String?
 }
 
 // TODO use root locale

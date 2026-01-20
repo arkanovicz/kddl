@@ -2,7 +2,8 @@ parser grammar kddlParser;
 
 options { tokenVocab = kddlLexer; }
 
-database: DATABASE name=LABEL LC ( schema | link | option ) * RC ;
+database: include_stmt* DATABASE name=LABEL LC ( schema | link | option ) * RC ;
+include_stmt: INCLUDE path=STRING ;
 schema: SCHEMA name=LABEL LC ( enum_decl | table | link )* RC ;
 enum_decl: ENUM name=LABEL LP enum_value ( CM? enum_value )* RP ;
 enum_value: STRING | LABEL ;

@@ -859,3 +859,63 @@ class DatabaseOptionsTest {
         assertEquals("'1.0'", db.options["version"])
     }
 }
+
+class IncludeTest {
+
+    @Test
+    fun testIncludeSyntaxParsed() {
+        // Test that include syntax is recognized by the parser
+        // Note: actual file loading will fail, but we can test the grammar
+        val ddl = """
+            include 'shared.kddl'
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                }
+              }
+            }
+        """.trimIndent()
+
+        // Use low-level parsing to check grammar without file resolution
+        val lexer = com.republicate.kddl.parser.kddlLexer(CharStreams.fromString(ddl))
+        val tokenStream = org.antlr.v4.kotlinruntime.CommonTokenStream(lexer)
+        val parser = com.republicate.kddl.parser.kddlParser(tokenStream)
+        val root = parser.database()
+
+        // Verify include statements are parsed
+        assertEquals(1, root.include_stmt().size)
+        assertEquals("'shared.kddl'", root.include_stmt()[0].path!!.text)
+        assertEquals("test", root.name!!.text)
+    }
+
+    @Test
+    fun testMultipleIncludesSyntax() {
+        val ddl = """
+            include 'types.kddl'
+            include 'base.kddl'
+            database test {
+              schema s {
+                table t { *id serial }
+              }
+            }
+        """.trimIndent()
+
+        val lexer = com.republicate.kddl.parser.kddlLexer(CharStreams.fromString(ddl))
+        val tokenStream = org.antlr.v4.kotlinruntime.CommonTokenStream(lexer)
+        val parser = com.republicate.kddl.parser.kddlParser(tokenStream)
+        val root = parser.database()
+
+        assertEquals(2, root.include_stmt().size)
+        assertEquals("'types.kddl'", root.include_stmt()[0].path!!.text)
+        assertEquals("'base.kddl'", root.include_stmt()[1].path!!.text)
+    }
+
+    @Test
+    fun testASTIncludeDisplay() {
+        // Test ASTInclude display method
+        val include = com.republicate.kddl.ASTInclude("shared/types.kddl")
+        val output = include.display().toString()
+        assertEquals("include 'shared/types.kddl'\n", output)
+    }
+}

@@ -2,7 +2,7 @@ package com.republicate.kddl.hypersql
 
 import com.republicate.kddl.SQLFormatter
 
-class HyperSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quoted, uppercase) {
+class HyperSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boolean = false): SQLFormatter(quoted, uppercase, idempotent) {
 
     override fun mapType(type: String): String? {
         return when (type) {

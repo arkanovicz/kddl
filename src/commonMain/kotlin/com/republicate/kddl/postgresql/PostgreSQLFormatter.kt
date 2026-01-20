@@ -3,15 +3,27 @@ package com.republicate.kddl.postgresql
 import com.republicate.kddl.*
 import com.republicate.kddl.Formatter.Companion.EOL
 
-class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean): SQLFormatter(quoted, uppercase) {
+class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boolean = false): SQLFormatter(quoted, uppercase, idempotent) {
 
     override val supportsEnums = true
     override val supportsInheritance = true
     override val scopedObjectNames = true
 
-    override fun defineEnum(field: ASTField) =
-        "CREATE TYPE ${transform("enum_${field.name}")} AS ENUM ${field.type.substring(4)};${EOL}" +
-        "CREATE CAST (varchar AS ${transform("enum_${field.name}")}) WITH INOUT AS IMPLICIT;"
+    override fun defineEnum(field: ASTField): String {
+        val typeName = transform("enum_${field.name}")
+        val enumValues = field.type.substring(4)
+        return if (idempotent) {
+            // Use DO block to create type only if it doesn't exist
+            "DO $$ BEGIN${EOL}" +
+            "  CREATE TYPE $typeName AS ENUM $enumValues;${EOL}" +
+            "EXCEPTION WHEN duplicate_object THEN NULL;${EOL}" +
+            "END $$;${EOL}" +
+            "CREATE CAST (varchar AS $typeName) WITH INOUT AS IMPLICIT;"
+        } else {
+            "CREATE TYPE $typeName AS ENUM $enumValues;${EOL}" +
+            "CREATE CAST (varchar AS $typeName) WITH INOUT AS IMPLICIT;"
+        }
+    }
 
     override fun defineInheritedView(table: ASTTable): String {
         val ret = StringBuilder()

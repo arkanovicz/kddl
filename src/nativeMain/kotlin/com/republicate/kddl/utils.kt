@@ -38,6 +38,26 @@ actual object Utils {
 
         return returnBuffer.toString()
     }
+
+    actual fun normalizePath(path: String): String {
+        // Simple normalization: remove . and .. components
+        val parts = path.split("/").filter { it.isNotEmpty() && it != "." }
+        val result = mutableListOf<String>()
+        for (part in parts) {
+            if (part == "..") {
+                if (result.isNotEmpty()) result.removeLast()
+            } else {
+                result.add(part)
+            }
+        }
+        return (if (path.startsWith("/")) "/" else "") + result.joinToString("/")
+    }
+
+    actual fun parentPath(path: String): String? {
+        val normalized = normalizePath(path)
+        val lastSlash = normalized.lastIndexOf('/')
+        return if (lastSlash <= 0) null else normalized.substring(0, lastSlash)
+    }
 }
 
 

@@ -2,7 +2,7 @@ package com.republicate.kddl
 
 import com.republicate.kddl.Formatter.Companion.EOL
 
-abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Formatter {
+abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val idempotent: Boolean = false): Formatter {
 
     open val supportsEnums = false
     open val supportsInheritance = false
@@ -57,8 +57,10 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
         val ret = StringBuilder()
         val schemaName = transform(asm.name)
         ret.append("${EOL}-- schema $schemaName${EOL}")
-        ret.append("DROP SCHEMA IF EXISTS $schemaName CASCADE$END")
-        ret.append("CREATE SCHEMA $schemaName")
+        if (!idempotent) {
+            ret.append("DROP SCHEMA IF EXISTS $schemaName CASCADE$END")
+        }
+        ret.append("CREATE SCHEMA${if (idempotent) " IF NOT EXISTS" else ""} $schemaName")
         // incorrect
 //        val owner = asm.db.options["owner"]?.value ?: ""
 //        if (owner.isNotEmpty()) ret.append(" WITH OWNER ${owner.removeSurrounding("'")}")
@@ -113,7 +115,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean): Format
             tableName = transform("base_${asm.name}")
         }
 
-        ret.append("CREATE TABLE $tableName (")
+        ret.append("CREATE TABLE${if (idempotent) " IF NOT EXISTS" else ""} $tableName (")
         var firstField = true
 
         for (field in asm.fields.values.filter { it.primaryKey }) {

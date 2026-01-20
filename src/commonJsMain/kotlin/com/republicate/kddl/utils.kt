@@ -12,4 +12,12 @@ actual object Utils {
     actual fun getFile(path: String): CharStream {
         TODO("Not implemented")
     }
+
+    actual fun normalizePath(path: String): String {
+        TODO("Not implemented")
+    }
+
+    actual fun parentPath(path: String): String? {
+        TODO("Not implemented")
+    }
 }

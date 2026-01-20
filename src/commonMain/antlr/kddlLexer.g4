@@ -38,6 +38,7 @@ VARBIT: 'varbit' ;
 CASCADE: 'cascade' ;
 AS: 'as' ;
 OPTION: 'option' ;
+INCLUDE: 'include' ;
 
 // values
 LABEL: [a-zA-Z_][a-zA-Z0-9_]* ;
