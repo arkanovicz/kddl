@@ -3,7 +3,6 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     id("org.jetbrains.dokka")
-    signing
     alias(libs.plugins.pluginPublish)
 }
 

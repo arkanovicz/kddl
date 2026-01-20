@@ -39,6 +39,10 @@ allprojects {
         }
     }
 
+    tasks.withType<Sign>().configureEach {
+        enabled = isRelease
+    }
+
     tasks {
         register<Jar>("dokkaJar") {
             from(dokkaHtml)
