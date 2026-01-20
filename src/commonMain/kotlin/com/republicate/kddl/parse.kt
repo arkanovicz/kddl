@@ -152,7 +152,7 @@ fun processLinkPair(
 
     if (leftMult && rightMult) {
         // Many-to-many: create join table
-        val linkTable = ASTTable(left.schema, "${left.name}_${right.name}")
+        val linkTable = JoinTable(left.schema, left, right)
         left.schema.tables[linkTable.name] = linkTable
         arrayOf(left, right).forEach {
             val pk = it.getOrCreatePrimaryKey()

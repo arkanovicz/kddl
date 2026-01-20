@@ -640,6 +640,39 @@ class LinkTest {
         val employee = schema.tables["employee"]!!
         assertEquals("team", employee.foreignKeys.first().towards.name)
     }
+
+    @Test
+    fun testKddlChainOutput() {
+        // Test that KDDL output generates chains from relations
+        val ddl = """
+            database test {
+              schema s {
+                table author {
+                  *author_id serial
+                  name varchar(100)
+                }
+                table book {
+                  *book_id serial
+                  title varchar(200)
+                }
+                table chapter {
+                  *chapter_id serial
+                  title varchar(100)
+                }
+                author *--* book --* chapter
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val output = db.display().toString()
+
+        // Should contain the chain, not individual links
+        assertTrue(output.contains("author *--* book --* chapter"), "Expected chain in output: $output")
+        // Should NOT contain join table
+        assertFalse(output.contains("author_book"), "Join table should be hidden: $output")
+        // Should NOT contain implicit FK field in chapter
+        assertFalse(output.contains("book_id ->"), "Implicit FK should be suppressed: $output")
+    }
 }
 
 class TypesTest {
