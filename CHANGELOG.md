@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18
+- Add `include 'path.kddl'` statement to include other KDDL files
+- SQL output now uses `IF NOT EXISTS` by default (idempotent mode)
+- Add `-n/--no-idempotent` CLI flag to disable idempotent mode
+- Make signing optional for non-release builds
+
 ## 0.17
 - Add standalone enum declarations: `enum name(val1, val2)` with optional quotes
 - Enums can be referenced by name in field types

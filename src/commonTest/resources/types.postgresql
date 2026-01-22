@@ -1,11 +1,10 @@
 -- database types
 
 -- schema test
-DROP SCHEMA IF EXISTS test CASCADE;
-CREATE SCHEMA test;
+CREATE SCHEMA IF NOT EXISTS test;
 SET search_path TO test,public;
 
-CREATE TABLE timestamps (
+CREATE TABLE IF NOT EXISTS timestamps (
   id serial NOT NULL,
   created timestamp NOT NULL DEFAULT now(),
   updated timestamp,

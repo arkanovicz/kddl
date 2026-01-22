@@ -1,11 +1,10 @@
 -- database example
 
 -- schema geo
-DROP SCHEMA IF EXISTS geo CASCADE;
-CREATE SCHEMA geo;
+CREATE SCHEMA IF NOT EXISTS geo;
 SET search_path TO geo,public;
 
-CREATE TABLE zone (
+CREATE TABLE IF NOT EXISTS zone (
   code varchar(10) NOT NULL,
   name varchar NOT NULL UNIQUE,
   description text,
@@ -15,7 +14,7 @@ CREATE TABLE zone (
 );
 
 
-CREATE TABLE base_department (
+CREATE TABLE IF NOT EXISTS base_department (
   code varchar(10) NOT NULL,
   PRIMARY KEY (code)
 );
@@ -44,7 +43,7 @@ CREATE RULE delete_department AS ON DELETE TO department DO INSTEAD (
 );
 
 
-CREATE TABLE base_city (
+CREATE TABLE IF NOT EXISTS base_city (
   code varchar(10) NOT NULL,
   has_train boolean,
   department_code varchar(10) NOT NULL,
@@ -79,7 +78,7 @@ CREATE RULE delete_city AS ON DELETE TO city DO INSTEAD (
 );
 
 
-CREATE TABLE link (
+CREATE TABLE IF NOT EXISTS link (
   src_id varchar(10) NOT NULL,
   dst_id varchar(10) NOT NULL,
   step_id varchar(10) NOT NULL,
@@ -98,12 +97,14 @@ ALTER TABLE base_city ADD CONSTRAINT code FOREIGN KEY (code) REFERENCES zone (co
 
 
 -- schema client
-DROP SCHEMA IF EXISTS client CASCADE;
-CREATE SCHEMA client;
+CREATE SCHEMA IF NOT EXISTS client;
 SET search_path TO client,public;
-CREATE TYPE enum_nature AS ENUM ('depart','arrival');
+DO $$ BEGIN
+  CREATE TYPE enum_nature AS ENUM ('depart','arrival');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 CREATE CAST (varchar AS enum_nature) WITH INOUT AS IMPLICIT;
-CREATE TABLE contact (
+CREATE TABLE IF NOT EXISTS contact (
   contact_id serial NOT NULL,
   gender char,
   firstname varchar NOT NULL,
@@ -112,7 +113,7 @@ CREATE TABLE contact (
 );
 
 
-CREATE TABLE location (
+CREATE TABLE IF NOT EXISTS location (
   name varchar(50) NOT NULL DEFAULT 'untitled',
   nature enum_nature NOT NULL,
   address text,

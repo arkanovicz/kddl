@@ -25,6 +25,7 @@ class KddlProcessor(
     val driver: String? = null,
     val uppercase: Boolean = false,
     val quoted: Boolean = false,
+    val idempotent: Boolean = true,
     val fromResource: Boolean = false) {
 
     fun process(): String {
@@ -42,8 +43,8 @@ class KddlProcessor(
         val formatter = when (format) {
             Format.KDDL -> KDDLFormatter()
             Format.PLANTUML -> PlantUMLFormatter()
-            Format.POSTGRESQL -> PostgreSQLFormatter(quoted=quoted, uppercase=uppercase)
-            Format.HYPERSQL -> HyperSQLFormatter(quoted=quoted, uppercase=uppercase)
+            Format.POSTGRESQL -> PostgreSQLFormatter(quoted=quoted, uppercase=uppercase, idempotent=idempotent)
+            Format.HYPERSQL -> HyperSQLFormatter(quoted=quoted, uppercase=uppercase, idempotent=idempotent)
         }
         return formatter.format(tree)
     }
@@ -56,9 +57,10 @@ class Kddl: CliktCommand() {
     val driver by option("-d", "--driver", help="jdbc driver")
     val uppercase by option("-u", "--uppercase", help="uppercase identifiers").flag()
     val quoted by option("-q", "--quoted", help="quoted identifiers").flag()
+    val noIdempotent by option("-n", "--no-if", "--no-idempotent", help="disable IF NOT EXISTS clauses in SQL").flag()
 
     override fun run() {
-        val processor = KddlProcessor(input, format, driver, uppercase, quoted)
+        val processor = KddlProcessor(input, format, driver, uppercase, quoted, idempotent = !noIdempotent)
         val ret = processor.process()
         println(ret)
     }

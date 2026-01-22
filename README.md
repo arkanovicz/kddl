@@ -34,12 +34,13 @@ kddl [OPTIONS] > [output_file]
 
 Options:
 ```
-  -i, --input     -> mandatory; input file or JDBC URL (with credentials)
-  -f, --format    -> mandatory; output format (value should be one of [kddl, plantuml, postgresql])
-  -d, --driver    -> jdbc driver, needed when input is a JDBC URL (classname, must be present in the classpath)
-  -q, --quoted    -> quoted identifiers
-  -u, --uppercase -> uppercase identifiers
-  -h, --help      -> Usage info
+  -i, --input        -> mandatory; input file or JDBC URL (with credentials)
+  -f, --format       -> mandatory; output format (value should be one of [kddl, plantuml, postgresql])
+  -d, --driver       -> jdbc driver, needed when input is a JDBC URL (classname, must be present in the classpath)
+  -q, --quoted       -> quoted identifiers
+  -u, --uppercase    -> uppercase identifiers
+  -n, --no-idempotent -> disable IF NOT EXISTS clauses in SQL output
+  -h, --help         -> Usage info
 
 ```
 
@@ -53,6 +54,10 @@ Here's the `example.kddl` file, which should be enough to understand the syntax 
   </summary>
   <div>
     <pre>
+// Include other KDDL files (paths relative to current file)
+// include 'shared/types.kddl'
+// include 'common.kddl'
+
 // Definition for database geo
 
 // Supported data types:
@@ -160,7 +165,7 @@ kddl -i jdbc://...<jdbc URL with credentials> -f kddl > output.kddl
 
 ```kotlin
 plugins {
-    id("com.republicate.kddl") version "0.16"
+    id("com.republicate.kddl") version "0.18"
 }
 
 kddl {
@@ -180,7 +185,7 @@ Then run:
 <plugin>
     <groupId>com.republicate.kddl</groupId>
     <artifactId>kddl-maven-plugin</artifactId>
-    <version>0.16</version>
+    <version>0.18</version>
     <executions>
         <execution>
             <goals>
@@ -245,7 +250,6 @@ Please adapt the installation and run scripts.
 - custom types
 - more tests (for instance: inheritance from another schema's table)
 - align fields (add a space if no field prefix)
-- kddl files inclusions
 - handle enum names collisions (=> error if values are not the same, factorized otherwise)
 - option to reset target schema or not
 - allow alternate prefix characters to be able to define several orthogonal keys
