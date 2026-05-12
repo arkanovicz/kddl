@@ -25,8 +25,8 @@ class CalciteSqlParser(
         .withParserFactory(SqlDdlParserImpl.FACTORY)
         .withCaseSensitive(false)
 
-    // Track custom types (PostgreSQL CREATE TYPE ... AS ENUM)
-    private val customTypes = mutableMapOf<String, List<String>>()
+    // Track custom enum types (PostgreSQL CREATE TYPE ... AS ENUM) by lowercased name
+    private val customEnums = mutableMapOf<String, ASTEnum>()
 
     /**
      * Parse SQL DDL script and return KDDL AST.
@@ -39,9 +39,9 @@ class CalciteSqlParser(
         // Split into statements and parse each
         val statements = splitStatements(sql)
 
-        // First pass: collect custom types
+        // First pass: collect custom enums
         statements.forEach { stmt ->
-            tryParseCreateType(stmt)
+            tryParseCreateType(stmt, defaultSchema)
         }
 
         // Second pass: process tables
@@ -84,7 +84,7 @@ class CalciteSqlParser(
         return statements
     }
 
-    private fun tryParseCreateType(sql: String) {
+    private fun tryParseCreateType(sql: String, schema: ASTSchema) {
         // PostgreSQL: CREATE TYPE status AS ENUM ('pending', 'active')
         val enumRegex = Regex(
             """CREATE\s+TYPE\s+(\w+)\s+AS\s+ENUM\s*\(([^)]+)\)""",
@@ -95,7 +95,9 @@ class CalciteSqlParser(
             val values = match.groupValues[2]
                 .split(",")
                 .map { it.trim().removeSurrounding("'") }
-            customTypes[typeName.lowercase()] = values
+            val enum = ASTEnum(schema, typeName, values)
+            schema.enums[typeName] = enum
+            customEnums[typeName.lowercase()] = enum
         }
     }
 
@@ -163,7 +165,7 @@ class CalciteSqlParser(
         table.fields[name] = field
     }
 
-    private fun mapDataType(dataType: SqlDataTypeSpec): Pair<String, Boolean> {
+    private fun mapDataType(dataType: SqlDataTypeSpec): Pair<FieldType, Boolean> {
         val typeName = dataType.typeName.simple.lowercase()
         val nullable = dataType.nullable ?: true
 
@@ -217,13 +219,13 @@ class CalciteSqlParser(
 
             // Check for custom enum type
             else -> {
-                customTypes[typeName]?.let { values ->
-                    "enum(${values.joinToString(",") { "'$it'" }})"
+                customEnums[typeName]?.let { enum ->
+                    return FieldType.NamedEnum(enum) to nullable
                 } ?: typeName
             }
         }
 
-        return kddlType to nullable
+        return FieldType.Primitive(kddlType) to nullable
     }
 
     private fun extractPrecision(dataType: SqlDataTypeSpec): Int? {

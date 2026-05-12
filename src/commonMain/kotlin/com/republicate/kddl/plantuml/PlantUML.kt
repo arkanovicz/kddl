@@ -77,17 +77,10 @@ class PlantUMLFormatter : Formatter {
             else if (primaryKey) ret.append(Creole.BOLD)
             ret.append(name)
             if (primaryKey) ret.append(Creole.BOLD)
-            if (type.isNotEmpty()) {
-                if (type.startsWith("enum(")) {
-                    ret.append(' ').append(
-                        type.removePrefix("enum")
-                            .removeSurrounding("(", ")")
-                            .split(',').joinToString(separator = "|") {
-                                it.trim().removeSurrounding("'")
-                            }
-                    )
-                }
-                else ret.append(" $type")
+            when (val t = type) {
+                is FieldType.NamedEnum -> ret.append(' ').append(t.enum.values.joinToString(separator = "|"))
+                is FieldType.InlineEnum -> ret.append(' ').append(t.values.joinToString(separator = "|"))
+                is FieldType.Primitive -> ret.append(" ${t.name}")
             }
             if (!nonNull) ret.append(Creole.ITALIC)
         }

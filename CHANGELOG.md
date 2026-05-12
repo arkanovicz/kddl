@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19
+- Introduce `FieldType` sealed type (`Primitive` / `InlineEnum` / `NamedEnum`) replacing the stringly-typed `ASTField.type`
+- Fix named enums: a single SQL `CREATE TYPE` is now emitted per declared enum, named after the enum
+- Fix: two fields referencing the same named enum no longer produce two distinct SQL types
+- Calcite SQL→KDDL reverse: PostgreSQL `CREATE TYPE … AS ENUM` now becomes a real named enum on the AST
+- KDDL round-trip: named-enum references re-emit as `field_name enum_name` instead of expanded inline values
+
 ## 0.18
 - Add `include 'path.kddl'` statement to include other KDDL files
 - SQL output now uses `IF NOT EXISTS` by default (idempotent mode)

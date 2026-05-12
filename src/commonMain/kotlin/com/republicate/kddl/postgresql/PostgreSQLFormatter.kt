@@ -9,19 +9,19 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
     override val supportsInheritance = true
     override val scopedObjectNames = true
 
-    override fun defineEnum(field: ASTField): String {
-        val typeName = transform("enum_${field.name}")
-        val enumValues = field.type.substring(4)
+    override fun defineEnum(typeName: String, values: List<String>): String {
+        val qTypeName = transform(typeName)
+        val enumValues = "(${values.joinToString(",") { "'$it'" }})"
         return if (idempotent) {
             // Use DO block to create type only if it doesn't exist
             "DO $$ BEGIN${EOL}" +
-            "  CREATE TYPE $typeName AS ENUM $enumValues;${EOL}" +
+            "  CREATE TYPE $qTypeName AS ENUM $enumValues;${EOL}" +
             "EXCEPTION WHEN duplicate_object THEN NULL;${EOL}" +
             "END $$;${EOL}" +
-            "CREATE CAST (varchar AS $typeName) WITH INOUT AS IMPLICIT;"
+            "CREATE CAST (varchar AS $qTypeName) WITH INOUT AS IMPLICIT;"
         } else {
-            "CREATE TYPE $typeName AS ENUM $enumValues;${EOL}" +
-            "CREATE CAST (varchar AS $typeName) WITH INOUT AS IMPLICIT;"
+            "CREATE TYPE $qTypeName AS ENUM $enumValues;${EOL}" +
+            "CREATE CAST (varchar AS $qTypeName) WITH INOUT AS IMPLICIT;"
         }
     }
 
@@ -69,7 +69,8 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
             val pk = parent.getPrimaryKey().elementAt(0)
             val pkName = transform(pk.name)
 
-            if (pk.type == "serial") {
+            val pkT = pk.type
+            if (pkT is FieldType.Primitive && pkT.name == "serial") {
 
                 var seqName = "${parent.name}_${pkName.removeSurrounding(Q)}_seq"
                 if (table.schema != parent.schema) seqName = "${transform(parent.schema.name)}.$seqName"
@@ -83,14 +84,16 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
                 ret.append("  RETURNING $qualifiedParentName.*")
                 if (childFields.isNotEmpty()) {
                     table.fields.values.forEach {
-                        var nullType = when  {
-                            // CB TODO - redundant with types map below
-                            it.type.startsWith("varchar") -> "null::varchar"
-                            it.type.startsWith("enum") -> "null::enum_${transform(it.name).removeSurrounding(Q)}"
-                            it.type == "float" -> "null::real"
-                            it.type == "double" -> "null::float"
-                            it.type == "int" -> "null::integer"
-                            else -> "null::${it.type}"
+                        val t = it.type
+                        var nullType = when {
+                            t is FieldType.NamedEnum -> "null::enum_${transform(t.enum.name).removeSurrounding(Q)}"
+                            t is FieldType.InlineEnum -> "null::enum_${transform(it.name).removeSurrounding(Q)}"
+                            t is FieldType.Primitive && t.base == "varchar" -> "null::varchar"
+                            t is FieldType.Primitive && t.name == "float" -> "null::real"
+                            t is FieldType.Primitive && t.name == "double" -> "null::float"
+                            t is FieldType.Primitive && t.name == "int" -> "null::integer"
+                            t is FieldType.Primitive -> "null::${t.name}"
+                            else -> "null::$t"
                         }
                         ret.append(",$nullType")
                     }

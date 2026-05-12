@@ -7,9 +7,16 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
     open val supportsEnums = false
     open val supportsInheritance = false
     open val scopedObjectNames = false
-    open fun defineEnum(field: ASTField) = ""
+    open fun defineEnum(typeName: String, values: List<String>) = ""
     open fun defineInheritedView(table: ASTTable) = ""
     open fun setSchema(schema: String) = "SET SCHEMA $schema$END"
+
+    // SQL type name for a field's type
+    protected fun sqlTypeName(field: ASTField): String = when (val t = field.type) {
+        is FieldType.NamedEnum -> "enum_${transform(t.enum.name).removeSurrounding(Q)}"
+        is FieldType.InlineEnum -> "enum_${transform(field.name).removeSurrounding(Q)}"
+        is FieldType.Primitive -> mapType(t.name) ?: t.name
+    }
 
     protected open val END = ";${EOL}"
     protected open val Q = if (quoted) "\"" else ""
@@ -67,16 +74,33 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
         ret.append(END)
         ret.append(setSchema(schemaName))
         if (supportsEnums) {
-            ret.append(
-                asm.tables.values.flatMap {
-                    it.fields.values
-                }.filter {
-                    it.type.startsWith("enum(")
-                }.distinctBy {
-                    it.name
-                }.joinToString(separator = EOL) {
-                    defineEnum(it)
-                })
+            // Named enums: emit once per ASTEnum (identity-deduped)
+            val namedEnumTypes = mutableSetOf<ASTEnum>()
+            val namedEnumDefs = StringBuilder()
+            // Inline anonymous enums: one type per field (per-field naming preserved)
+            val inlineEnumDefs = StringBuilder()
+            for (table in asm.tables.values) {
+                for (field in table.fields.values) {
+                    when (val t = field.type) {
+                        is FieldType.NamedEnum -> {
+                            if (namedEnumTypes.add(t.enum)) {
+                                val name = "enum_${transform(t.enum.name).removeSurrounding(Q)}"
+                                if (namedEnumDefs.isNotEmpty()) namedEnumDefs.append(EOL)
+                                namedEnumDefs.append(defineEnum(name, t.enum.values))
+                            }
+                        }
+                        is FieldType.InlineEnum -> {
+                            val name = "enum_${transform(field.name).removeSurrounding(Q)}"
+                            if (inlineEnumDefs.isNotEmpty()) inlineEnumDefs.append(EOL)
+                            inlineEnumDefs.append(defineEnum(name, t.values))
+                        }
+                        else -> { /* skip */ }
+                    }
+                }
+            }
+            ret.append(namedEnumDefs)
+            if (namedEnumDefs.isNotEmpty() && inlineEnumDefs.isNotEmpty()) ret.append(EOL)
+            ret.append(inlineEnumDefs)
         }
         ret.append(EOL)
         ret.append(
@@ -186,9 +210,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
         val ret = StringBuilder(indent)
         asm.apply {
             ret.append(transform(name))
-            if (type.isEmpty()) throw RuntimeException("Missing type for ${asm.table.schema.name}.${asm.table.name}.${asm.name}")
-            else if (type.startsWith("enum(")) ret.append(" enum_${transform(name).removeSurrounding(Q)}")
-            else ret.append(" ${mapType(type) ?: type}")
+            ret.append(" ${sqlTypeName(asm)}")
             if (nonNull) ret.append(" NOT NULL")
             // CB TODO - review 'unique' upstream calculation. A field should not be systematically
             // be marked as unique because it is part of a multivalued primary key, for instance.

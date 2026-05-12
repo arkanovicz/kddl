@@ -345,10 +345,29 @@ class JoinTable(schema: ASTSchema, val sourceTable: ASTTable, val destTable : AS
 
 val keySuffix = "_id"
 
+sealed class FieldType {
+    class Primitive(val name: String) : FieldType() {
+        val base: String get() = name.substringBefore('(')
+        override fun toString() = name
+        override fun equals(other: Any?) = other is Primitive && other.name == name
+        override fun hashCode() = name.hashCode()
+    }
+    class InlineEnum(val values: List<String>) : FieldType() {
+        override fun toString() = "enum(${values.joinToString(",") { "'$it'" }})"
+        override fun equals(other: Any?) = other is InlineEnum && other.values == values
+        override fun hashCode() = values.hashCode()
+    }
+    class NamedEnum(val enum: ASTEnum) : FieldType() {
+        override fun toString() = enum.name
+        override fun equals(other: Any?) = other is NamedEnum && other.enum === enum
+        override fun hashCode() = enum.hashCode()
+    }
+}
+
 class ASTField(
     val table : ASTTable,
     name : String,
-    val type : String,
+    val type : FieldType,
     val primaryKey: Boolean = false,
     val nonNull: Boolean = true,
     val unique : Boolean = false,
@@ -356,13 +375,20 @@ class ASTField(
     val default : Any? = null,
     val alias : String? = null,
     ) : DBObject(name) {
+    constructor(
+        table: ASTTable, name: String, type: String,
+        primaryKey: Boolean = false, nonNull: Boolean = true, unique: Boolean = false,
+        indexed: Boolean = false, default: Any? = null, alias: String? = null,
+    ) : this(table, name, FieldType.Primitive(type), primaryKey, nonNull, unique, indexed, default, alias)
+
     companion object {
-        fun isTextType(type: String): Boolean {
-            return type.startsWith("varchar", true) || type == "char" || type == "text" || type == "clob"
+        fun isTextType(type: FieldType): Boolean {
+            if (type !is FieldType.Primitive) return false
+            return type.base.equals("varchar", true) || type.base == "char" || type.base == "text" || type.base == "clob"
         }
     }
     fun isDefaultKey() : Boolean {
-        return primaryKey && type == "serial" && name == "${table.name}$keySuffix" // TODO - handle suffix
+        return primaryKey && type is FieldType.Primitive && type.name == "serial" && name == "${table.name}$keySuffix" // TODO - handle suffix
     }
     fun getForeignKeys() : List<ASTForeignKey> = table.foreignKeys.filter { this in it.fields }
     fun isLinkField() : Boolean = !getForeignKeys().isEmpty()
@@ -373,7 +399,10 @@ class ASTField(
         if (fk.fields.size != 1) return false
         val pk = fk.towards.getOrCreatePrimaryKey().first()
         if (name != pk.name) return false
-        if (type !in listOf("int", "integer", "long", pk.type)) return false
+        if (type !is FieldType.Primitive) return false
+        val pkType = pk.type
+        if (pkType !is FieldType.Primitive) return false
+        if (type.name !in listOf("int", "integer", "long", pkType.name)) return false
         return true
     }
 
@@ -393,10 +422,10 @@ class ASTField(
             if (fk.cascade) builder.append(" cascade")
             if (fk.direction.isNotEmpty()) builder.append(" ${fk.direction}")
         } else {
-            builder.append(" $type")
+            builder.append(" ${type}")
             if (!nonNull) builder.append('?')
             if (default != null) {
-                if (isTextType(type) && !type.startsWith("'")) builder.append(" = '$default'")
+                if (isTextType(type)) builder.append(" = '$default'")
                 else builder.append(" = $default")
             }
         }
@@ -429,7 +458,12 @@ class ASTForeignKey(
         val pk = towards.getOrCreatePrimaryKey().first()
         if (fk.default != null) return false
         if (fk.name != pk.name && fk.name != "${pk.table.name.withoutCapital()}${pk.name.withCapital()}") return false
-        val typesMatch = pk.type == fk.type || (pk.type == "serial" && fk.type in setOf("int", "integer", "long"))
+        val pkT = pk.type
+        val fkT = fk.type
+        val typesMatch = pkT == fkT || (
+            pkT is FieldType.Primitive && pkT.name == "serial"
+            && fkT is FieldType.Primitive && fkT.name in setOf("int", "integer", "long")
+        )
         if (!typesMatch) return false
         return true
     }

@@ -1,6 +1,7 @@
 package com.republicate.kddl.test
 
 import com.github.ajalt.clikt.completion.CompletionCandidates.Path
+import com.republicate.kddl.FieldType
 import com.republicate.kddl.Format
 import com.republicate.kddl.KddlProcessor
 import com.republicate.kddl.Utils
@@ -48,7 +49,8 @@ class AliasTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val field = db.schemas["s"]!!.tables["t"]!!.fields["status"]!!
-        assertEquals("enum('a','b')", field.type)
+        val t = field.type as FieldType.InlineEnum
+        assertEquals(listOf("a", "b"), t.values)
         assertNull(field.alias)
     }
 
@@ -66,7 +68,8 @@ class AliasTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val field = db.schemas["s"]!!.tables["t"]!!.fields["mode"]!!
-        assertEquals("enum('human','bot')", field.type)
+        val t = field.type as FieldType.InlineEnum
+        assertEquals(listOf("human", "bot"), t.values)
         assertEquals("GameMode", field.alias)
     }
 
@@ -84,7 +87,8 @@ class AliasTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val field = db.schemas["s"]!!.tables["t"]!!.fields["difficulty"]!!
-        assertEquals("enum('easy','medium','hard')", field.type)
+        val t = field.type as FieldType.InlineEnum
+        assertEquals(listOf("easy", "medium", "hard"), t.values)
         assertEquals("DifficultyLevel", field.alias)
         assertEquals("medium", field.default)
         assertTrue(field.nonNull)
@@ -106,7 +110,8 @@ class AliasTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val field = db.schemas["s"]!!.tables["t"]!!.fields["result"]!!
-        assertEquals("enum('win','loss')", field.type)
+        val t = field.type as FieldType.InlineEnum
+        assertEquals(listOf("win", "loss"), t.values)
         assertEquals("GameResult", field.alias)
         assertFalse(field.nonNull)
     }
@@ -126,7 +131,8 @@ class AliasTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val field = db.schemas["s"]!!.tables["t"]!!.fields["status"]!!
-        assertEquals("enum('a','b','c')", field.type)
+        val t = field.type as FieldType.InlineEnum
+        assertEquals(listOf("a", "b", "c"), t.values)
         assertEquals("Status", field.alias)
         assertEquals("a", field.default)
         assertFalse(field.nonNull)
@@ -204,9 +210,10 @@ class EnumTest {
         // Enum should be parsed
         val enum = schema.enums["status"]!!
         assertEquals(listOf("pending", "active", "completed"), enum.values)
-        // Field should reference the enum
+        // Field should reference the enum by identity
         val field = schema.tables["task"]!!.fields["status"]!!
-        assertEquals("enum('pending','active','completed')", field.type)
+        val t = field.type as FieldType.NamedEnum
+        assertSame(enum, t.enum)
     }
 
     @Test
@@ -241,8 +248,8 @@ class EnumTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val field = db.schemas["s"]!!.tables["t"]!!.fields["status"]!!
-        // Should be normalized to quoted values
-        assertEquals("enum('pending','active','completed')", field.type)
+        val t = field.type as FieldType.InlineEnum
+        assertEquals(listOf("pending", "active", "completed"), t.values)
     }
 
     @Test
@@ -259,7 +266,78 @@ class EnumTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val field = db.schemas["s"]!!.tables["t"]!!.fields["status"]!!
-        assertEquals("enum('a','b','c')", field.type)
+        val t = field.type as FieldType.InlineEnum
+        assertEquals(listOf("a", "b", "c"), t.values)
+    }
+}
+
+class NamedEnumSQLTest {
+
+    @Test
+    fun testNamedEnumProducesNamedSqlType() {
+        // A named enum referenced by a field must produce a SQL TYPE
+        // whose name comes from the enum, not the field.
+        val ddl = """
+            database test {
+              schema s {
+                enum status(pending, active, completed)
+                table task {
+                  *id serial
+                  task_status status
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false)
+            .format(parse(CharStreams.fromString(ddl)))
+        assertTrue(sql.contains("CREATE TYPE enum_status AS ENUM"),
+            "Expected SQL type derived from enum name, got:\n$sql")
+        assertFalse(sql.contains("enum_task_status"),
+            "SQL type must not be derived from field name when a named enum is used:\n$sql")
+    }
+
+    @Test
+    fun testSharedNamedEnumDedupedToSingleType() {
+        // Two fields referencing the same named enum must share one SQL TYPE.
+        val ddl = """
+            database test {
+              schema s {
+                enum status(pending, active)
+                table a {
+                  *id serial
+                  s status
+                }
+                table b {
+                  *id serial
+                  s status
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false)
+            .format(parse(CharStreams.fromString(ddl)))
+        val occurrences = Regex("CREATE TYPE enum_status AS ENUM").findAll(sql).count()
+        assertEquals(1, occurrences, "Expected single CREATE TYPE for shared named enum, got $occurrences in:\n$sql")
+    }
+
+    @Test
+    fun testInlineEnumStillPerField() {
+        // Inline anonymous enums keep per-field naming (current policy).
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  status enum('a', 'b')
+                  mode enum('x', 'y')
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false)
+            .format(parse(CharStreams.fromString(ddl)))
+        assertTrue(sql.contains("CREATE TYPE enum_status AS ENUM"))
+        assertTrue(sql.contains("CREATE TYPE enum_mode AS ENUM"))
     }
 }
 
@@ -771,8 +849,8 @@ class TypesTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val table = db.schemas["s"]!!.tables["t"]!!
-        assertEquals("numeric(10,2)", table.fields["price"]!!.type)
-        assertEquals("numeric(5)", table.fields["quantity"]!!.type)
+        assertEquals("numeric(10,2)", table.fields["price"]!!.type.toString())
+        assertEquals("numeric(5)", table.fields["quantity"]!!.type.toString())
     }
 
     @Test
@@ -791,9 +869,9 @@ class TypesTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val table = db.schemas["s"]!!.tables["t"]!!
-        assertEquals("varchar(10)", table.fields["short_name"]!!.type)
-        assertEquals("varchar(255)", table.fields["long_name"]!!.type)
-        assertEquals("varchar", table.fields["unlimited"]!!.type)
+        assertEquals("varchar(10)", table.fields["short_name"]!!.type.toString())
+        assertEquals("varchar(255)", table.fields["long_name"]!!.type.toString())
+        assertEquals("varchar", table.fields["unlimited"]!!.type.toString())
     }
 
     @Test
@@ -812,9 +890,9 @@ class TypesTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val table = db.schemas["s"]!!.tables["t"]!!
-        assertEquals("timestamp", table.fields["created"]!!.type)
-        assertEquals("timestamp(3)", table.fields["updated"]!!.type)
-        assertEquals("timestamptz(6)", table.fields["with_tz"]!!.type)
+        assertEquals("timestamp", table.fields["created"]!!.type.toString())
+        assertEquals("timestamp(3)", table.fields["updated"]!!.type.toString())
+        assertEquals("timestamptz(6)", table.fields["with_tz"]!!.type.toString())
     }
 
     @Test
@@ -833,10 +911,10 @@ class TypesTest {
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val table = db.schemas["s"]!!.tables["t"]!!
-        assertEquals("uuid", table.fields["id"]!!.type)
-        assertEquals("json", table.fields["data"]!!.type)
-        assertEquals("varbit(8)", table.fields["bits"]!!.type)
-        assertEquals("interval", table.fields["duration"]!!.type)
+        assertEquals("uuid", table.fields["id"]!!.type.toString())
+        assertEquals("json", table.fields["data"]!!.type.toString())
+        assertEquals("varbit(8)", table.fields["bits"]!!.type.toString())
+        assertEquals("interval", table.fields["duration"]!!.type.toString())
     }
 }
 

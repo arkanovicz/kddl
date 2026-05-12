@@ -259,4 +259,4 @@ Please adapt the installation and run scripts.
 
 + a field can be implied in one foreign key at most (but it may be a good practice...)
 + multivalued foreign keys fields must be named after target primary key fields (quite the same...)
-+ enum fields of the same name share the same values (also a good practice!)
++ inline anonymous `enum(...)` types are named after the field; two inline enums with the same field name across different tables will clash. Use a named enum (`enum X(...)` then `field X`) to share a type explicitly.

@@ -105,30 +105,28 @@ fun buildAst(
                             else -> throw SemanticException("invalid default value: ${astDefault.text}")
                         }
                     }
-                    var type: String? = null
+                    var type: FieldType? = null
                     val astType = astField.type()
                     if (astType != null) {
                         val enumRef = astType.enum_ref?.text
                         if (enumRef != null) {
-                            // resolve enum reference
                             val enum = schema.enums[enumRef]
                                 ?: throw SemanticException("enum not found: $enumRef")
-                            type = "enum(${enum.values.joinToString(",") { "'$it'" }})"
+                            type = FieldType.NamedEnum(enum)
                         } else if (astType.enum_value().isNotEmpty()) {
-                            // inline enum - normalize to quoted values
                             val values = astType.enum_value().map {
                                 it.STRING()?.text?.removeSurrounding("'") ?: it.LABEL()!!.text!!
                             }
-                            type = "enum(${values.joinToString(",") { "'$it'" }})"
+                            type = FieldType.InlineEnum(values)
                         } else {
-                            type = astType.text
+                            type = FieldType.Primitive(astType.text)
                         }
                     }
                     if (type == null) {
                         // This section is a work in progress
-                        if (astDefault?.STRING() != null) type = "varchar"
-                        else if (astDefault?.function() != null) type = astDefault.function()?.LABEL()?.text?.returnType()
-                        else if (astDefault?.boolean() != null) type = "boolean"
+                        if (astDefault?.STRING() != null) type = FieldType.Primitive("varchar")
+                        else if (astDefault?.function() != null) astDefault.function()?.LABEL()?.text?.returnType()?.let { type = FieldType.Primitive(it) }
+                        else if (astDefault?.boolean() != null) type = FieldType.Primitive("boolean")
                         // else... inspect number type... ?
                     }
                     if (type == null) {
@@ -141,7 +139,9 @@ fun buildAst(
                     val refPk = reference.getOrCreatePrimaryKey()
                     val cascade = astField.CASCADE() != null
                     val direction = astField.direction()?.text ?: ""
-                    val fieldType = refPk.first().type.let { if (it == "serial") "int" else it }
+                    val fieldType: FieldType = refPk.first().type.let {
+                        if (it is FieldType.Primitive && it.name == "serial") FieldType.Primitive("int") else it
+                    }
                     ASTField(table, fieldName, fieldType, pk, nonNull, unique)
                         .also {
                             val fk = ASTForeignKey(table, setOf(it), reference, nonNull, unique, cascade, direction)
@@ -204,7 +204,10 @@ fun processLinkPair(
         arrayOf(left, right).forEach {
             val pk = it.getOrCreatePrimaryKey()
             val fkFields = pk.map {
-                val fkField = ASTField(linkTable, it.name, it.type.let { if (it == "serial") "int" else it}, false, true, false)
+                val type: FieldType = it.type.let { t ->
+                    if (t is FieldType.Primitive && t.name == "serial") FieldType.Primitive("int") else t
+                }
+                val fkField = ASTField(linkTable, it.name, type, false, true, false)
                 linkTable.fields[it.name] = fkField
                 fkField
             }.toSet()
@@ -224,11 +227,16 @@ fun processLinkPair(
                 val fieldName =
                     if (fkField == null) it.name
                     else "${pkTable.name.withoutCapital()}${it.name.withCapital()}"
-                val type = it.type.let { if (it == "serial") "int" else it}
+                val type: FieldType = it.type.let { t ->
+                    if (t is FieldType.Primitive && t.name == "serial") FieldType.Primitive("int") else t
+                }
                 fkField = ASTField(fkTable, fieldName, type, false, nonNull, false)
                 fkTable.fields[fieldName] = fkField
             }
-            if (fkField.type != it.type && it.type == "serial" && fkField.type !in arrayOf("int", "long"))
+            val fkT = fkField.type
+            val pkT = it.type
+            if (fkT != pkT && pkT is FieldType.Primitive && pkT.name == "serial"
+                && (fkT !is FieldType.Primitive || fkT.name !in arrayOf("int", "long")))
                 throw SemanticException("link ${fkTable.name} -> ${pkTable.name}: incompatible fk/pk field types")
             fkField
         }.toSet()
@@ -330,8 +338,16 @@ private fun copyTable(srcTable: ASTTable, targetSchema: ASTSchema): ASTTable {
 
     // Copy fields
     for ((fieldName, srcField) in srcTable.fields) {
+        val newType: FieldType = when (val t = srcField.type) {
+            is FieldType.NamedEnum -> {
+                val rebound = targetSchema.enums[t.enum.name]
+                    ?: throw SemanticException("enum not found during include copy: ${t.enum.name}")
+                FieldType.NamedEnum(rebound)
+            }
+            else -> t
+        }
         val newField = ASTField(
-            newTable, fieldName, srcField.type,
+            newTable, fieldName, newType,
             srcField.primaryKey, srcField.nonNull, srcField.unique,
             srcField.indexed, srcField.default, srcField.alias
         )
