@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.20-SNAPSHOT
+- Fix: inheritance INSERT rules now wrap `NEW.col` in `COALESCE(NEW.col, <default-expr>)` for columns with a `DEFAULT` clause, so view inserts that omit the column actually pick up the default instead of inserting NULL
+
 ## 0.19
 - Introduce `FieldType` sealed type (`Primitive` / `InlineEnum` / `NamedEnum`) replacing the stringly-typed `ASTField.type`
 - Fix named enums: a single SQL `CREATE TYPE` is now emitted per declared enum, named after the enum

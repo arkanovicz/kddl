@@ -9,6 +9,30 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
     override val supportsInheritance = true
     override val scopedObjectNames = true
 
+    private fun defaultExpression(field: ASTField): String? {
+        return when (val d = field.default) {
+            null -> null
+            is Boolean -> d.toString()
+            is Number -> d.toString()
+            is String -> {
+                if (d.contains('(') && d.contains(')')) {
+                    // GENERATED ALWAYS columns can't be inserted into; skip COALESCE
+                    if (d.startsWith("concat")) null
+                    else d
+                } else "'$d'"
+            }
+            is Function0<*> -> @Suppress("UNCHECKED_CAST") (d as Function0<String>).invoke()
+            is Function<*> -> "$d()"
+            else -> null
+        }
+    }
+
+    private fun newOrDefault(field: ASTField): String {
+        val ref = "NEW.${transform(field.name)}"
+        val def = defaultExpression(field) ?: return ref
+        return "COALESCE($ref, $def)"
+    }
+
     override fun defineEnum(typeName: String, values: List<String>): String {
         val qTypeName = transform(typeName)
         val enumValues = "(${values.joinToString(",") { "'$it'" }})"
@@ -79,7 +103,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
 
                 ret.append("  INSERT INTO $qualifiedParentName ($pkName, $parentNonPKFields,${Q}class$Q)${EOL}    VALUES (")
                 ret.append("     COALESCE(NEW.$pkName,NEXTVAL('$seqName')),")
-                var parentValues = parent.fields.values.filter { !it.primaryKey }.map { "NEW.${transform(it.name)}" }.joinToString(",")
+                var parentValues = parent.fields.values.filter { !it.primaryKey }.map { newOrDefault(it) }.joinToString(",")
                 ret.append("$parentValues,'$baseName')${EOL}")
                 ret.append("  RETURNING $qualifiedParentName.*")
                 if (childFields.isNotEmpty()) {
@@ -108,7 +132,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
                 }
                 ret.append(")${EOL}    VALUES (")
                 ret.append("CURRVAL('$seqName')")
-                var childValues = table.fields.values.joinToString(",") { "NEW.${transform(it.name)}" }
+                var childValues = table.fields.values.joinToString(",") { newOrDefault(it) }
                 if (childValues.isNotEmpty()) {
                     ret.append(",$childValues")
                 }
@@ -120,14 +144,14 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
 
                 ret.append("CREATE RULE insert_${baseName} AS ON INSERT TO $viewName DO INSTEAD (${EOL}")
                 ret.append("  INSERT INTO $qualifiedParentName ($pkName,$parentNonPKFields,${Q}class$Q)${EOL}    VALUES (")
-                val parentValues = parent.fields.values.joinToString(",") { "NEW.${transform(it.name)}" }
+                val parentValues = parent.fields.values.joinToString(",") { newOrDefault(it) }
                 ret.append("$parentValues,'$viewName')$END")
                 ret.append("  INSERT INTO $tableName ($pkName")
                 if (childFields.isNotEmpty()) {
                     ret.append(",$childFields")
                 }
                 ret.append(")${EOL}    VALUES (")
-                var childValues = table.fields.values.joinToString(",") { "NEW.${transform(it.name)}" }
+                var childValues = table.fields.values.joinToString(",") { newOrDefault(it) }
                 ret.append("NEW.$pkName")
                 if (childValues.isNotEmpty()) {
                     ret.append(",$childValues")
