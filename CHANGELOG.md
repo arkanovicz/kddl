@@ -1,13 +1,12 @@
 # Changelog
 
-## 0.20-SNAPSHOT
+## 0.20
 - Fix: inheritance INSERT rules now wrap `NEW.col` in `COALESCE(NEW.col, <default-expr>)` for columns with a `DEFAULT` clause, so view inserts that omit the column actually pick up the default instead of inserting NULL
 
 ## 0.19
 - Introduce `FieldType` sealed type (`Primitive` / `InlineEnum` / `NamedEnum`) replacing the stringly-typed `ASTField.type`
 - Fix named enums: a single SQL `CREATE TYPE` is now emitted per declared enum, named after the enum
 - Fix: two fields referencing the same named enum no longer produce two distinct SQL types
-- Calcite SQL→KDDL reverse: PostgreSQL `CREATE TYPE … AS ENUM` now becomes a real named enum on the AST
 - KDDL round-trip: named-enum references re-emit as `field_name enum_name` instead of expanded inline values
 
 ## 0.18
@@ -34,7 +33,6 @@
 
 ## 0.14
 - Add Maven plugin (`kddl-maven-plugin`)
-- Add Calcite-based SQL DDL parser (JVM-only)
 - Add `varbit` type
 - Allow type keywords as field names
 

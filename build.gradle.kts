@@ -165,7 +165,6 @@ kotlin {
             dependencies {
                 runtimeOnly(libs.postgresql)
                 runtimeOnly(libs.mysql.connector)
-                implementation(libs.calcite.server)
             }
         }
         jvmTest {

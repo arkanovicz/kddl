@@ -245,7 +245,7 @@ Please adapt the installation and run scripts.
 ## TODO
 
 - document library usage
-- wire SQL→KDDL reverse engineering (Calcite parser available in JVM)
+- SQL→KDDL reverse engineering (work parked on `feature/parse-ddl` branch)
 - db versioning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
 - custom types
 - more tests (for instance: inheritance from another schema's table)
