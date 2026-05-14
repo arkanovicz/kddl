@@ -26,7 +26,7 @@ CREATE VIEW department AS
 
 CREATE RULE insert_department AS ON INSERT TO department DO INSTEAD (
   INSERT INTO zone (code,name,description,active,class)
-    VALUES (NEW.code,NEW.name,NEW.description,NEW.active,'department');
+    VALUES (NEW.code,NEW.name,NEW.description,COALESCE(NEW.active, false),'department');
   INSERT INTO base_department (code)
     VALUES (NEW.code);
 );
@@ -58,7 +58,7 @@ CREATE VIEW city AS
 
 CREATE RULE insert_city AS ON INSERT TO city DO INSTEAD (
   INSERT INTO zone (code,name,description,active,class)
-    VALUES (NEW.code,NEW.name,NEW.description,NEW.active,'city');
+    VALUES (NEW.code,NEW.name,NEW.description,COALESCE(NEW.active, false),'city');
   INSERT INTO base_city (code,has_train,department_code)
     VALUES (NEW.code,NEW.has_train,NEW.department_code);
 );
