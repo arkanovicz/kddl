@@ -20,7 +20,7 @@ description = "KDDL Database model swiss-army knife"
 
 allprojects {
     group = "com.republicate.kddl"
-    version = "0.20"
+    version = "0.21"
 
     repositories {
         mavenCentral()

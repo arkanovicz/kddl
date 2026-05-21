@@ -9,7 +9,10 @@ antlrKotlin = "1.0.5"
 clikt = "5.0.3"
 coroutines = "1.10.2"
 postgres = "42.7.7"
-mysql = "9.3.0"
+# mysql-connector-j 9.x pulls protobuf-java 4.x onto the buildscript classpath
+# of consumers, breaking AGP's Tink-based release tasks (NoSuchMethodError on
+# Keyset.makeExtensionsImmutable). 8.4.0 is the last release on protobuf 3.x.
+mysql = "8.4.0"
 
 [libraries]
 antlr-kotlin-runtime = { module = "com.strumenta:antlr-kotlin-runtime", version.ref = "antlrKotlin" }

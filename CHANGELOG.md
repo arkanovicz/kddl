@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.21
+- Downgrade `mysql-connector-j` to 8.4.0 (last release on protobuf-java 3.x) to avoid forcing protobuf 4.x onto consumer buildscript classpaths and breaking AGP's Tink-based release tasks (`NoSuchMethodError` on `Keyset.makeExtensionsImmutable`)
+
 ## 0.20
 - Fix: inheritance INSERT rules now wrap `NEW.col` in `COALESCE(NEW.col, <default-expr>)` for columns with a `DEFAULT` clause, so view inserts that omit the column actually pick up the default instead of inserting NULL
 
