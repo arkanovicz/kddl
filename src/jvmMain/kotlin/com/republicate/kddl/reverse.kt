@@ -110,14 +110,14 @@ class ReverseEngineer(val url: String) {
             keys.add(it.getString("COLUMN_NAME"))
         }
 
-        val uniqueIndices = mutableMapOf<String, String>()
+        // index name -> ordered column names (JDBC returns rows ordered by ORDINAL_POSITION)
+        val uniqueIndices = mutableMapOf<String, MutableList<String>>()
         uniqueIndices(table.schema.name, table.name) {
             val indexName = it.getString("INDEX_NAME")
-            val colName = it.getString("COLUMN_NAME")
-            if (uniqueIndices.contains(indexName)) uniqueIndices.remove(indexName)
-            else uniqueIndices[indexName] = colName;
+            val colName = it.getString("COLUMN_NAME") ?: return@uniqueIndices // skip statistics rows
+            uniqueIndices.getOrPut(indexName) { mutableListOf() }.add(colName)
         }
-        val uniqueCols = uniqueIndices.values.toSet()
+        val uniqueCols = uniqueIndices.values.filter { it.size == 1 }.flatten().toSet()
 
         fields(table.schema.name, table.name) {
             var size: Int? = it.getInt("COLUMN_SIZE")
@@ -148,8 +148,13 @@ class ReverseEngineer(val url: String) {
             }
             val nonNull = it.getString("IS_NULLABLE") == "NO"
             val generated = ("YES" == it.getString("IS_AUTOINCREMENT") || "YES" == it.getString("IS_GENERATEDCOLUMN"))
-            val field = ASTField(table, fieldName, dataType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), false /*TODO*/, columnDef)
+            val field = ASTField(table, fieldName, dataType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), false /*TODO non-unique indexes*/, columnDef)
             table.fields[fieldName] = field
+        }
+
+        // composite unique indices as constraint groups, skipping the PK's own index
+        uniqueIndices.values.filter { it.size > 1 && it.toSet() != keys }.forEach { cols ->
+            table.getOrCreateIndex(cols.map { table.fields[it]!! }, true)
         }
     }
 
