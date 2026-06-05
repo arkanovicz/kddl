@@ -171,16 +171,15 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
             ret.append("  class varchar(30)")
         }
 
+        // unique constraint groups
+        for (index in asm.indices.filter { it.unique }) {
+            val indexCols = index.fields.joinToString(", ") { transform(it.name) }
+            if (firstField) firstField = false else ret.append(",")
+            ret.append(EOL)
+            ret.append("  UNIQUE ($indexCols)")
+        }
+
         if (asm.parent == null) {
-            val indexedFields = asm.fields.values.filter { it.indexed }.toSet()
-            if (!indexedFields.isEmpty()) {
-                val unique = indexedFields.all { it.unique }
-                val index = asm.getOrCreateIndex(indexedFields, unique)
-                val indexCols = indexedFields.joinToString(", ") { transform(it.name) }
-                if (firstField) firstField = false else ret.append(",")
-                ret.append(EOL)
-                ret.append("  ${if (unique) "UNIQUE " else ""}INDEX (${indexCols})")
-            }
             val pkFields = asm.getPrimaryKey().joinToString(", ") { transform(it.name) }
             if (pkFields.isNotEmpty()) {
                 if (firstField) firstField = false else ret.append(",")
@@ -197,6 +196,18 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
         }
 
         ret.append("${EOL})$END${EOL}")
+
+        // non-unique indexes: constraint groups plus singleton '+' fields
+        val indexes = asm.indices.filter { !it.unique }.toMutableList()
+        asm.fields.values.filter { it.indexed && !it.primaryKey }.forEach { field ->
+            if (indexes.none { it.fields == listOf(field) }) indexes.add(ASTIndex(asm, listOf(field), false))
+        }
+        for (index in indexes) {
+            val rawName = "${asm.name}_${index.fields.joinToString("_") { it.name }}_idx"
+            val indexCols = index.fields.joinToString(", ") { transform(it.name) }
+            ret.append("CREATE INDEX${if (idempotent) " IF NOT EXISTS" else ""} ${transform(rawName)} ON $tableName ($indexCols)$END")
+        }
+        if (indexes.isNotEmpty()) ret.append(EOL)
 
         if (asm.parent != null) {
             ret.append(defineInheritedView(asm))

@@ -419,6 +419,164 @@ class FieldModifiersTest {
     }
 }
 
+class CompositeConstraintsTest {
+
+    private fun pgSql(ddl: String) =
+        com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false)
+            .format(parse(CharStreams.fromString(ddl)))
+
+    @Test
+    fun testCompositeUnique() {
+        val ddl = """
+            database test {
+              schema s {
+                table dude {
+                  *id serial
+                  provider varchar(32)
+                  external_id varchar(255)
+                  !(provider, external_id)
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val table = db.schemas["s"]!!.tables["dude"]!!
+        assertEquals(1, table.indices.size)
+        val index = table.indices[0]
+        assertTrue(index.unique)
+        assertEquals(listOf("provider", "external_id"), index.fields.map { it.name })
+        // fields themselves are not individually unique
+        assertFalse(table.fields["provider"]!!.unique)
+        assertFalse(table.fields["external_id"]!!.unique)
+        val sql = pgSql(ddl)
+        assertTrue(sql.contains("UNIQUE (provider, external_id)"), "Expected composite UNIQUE constraint in:\n$sql")
+    }
+
+    @Test
+    fun testColumnOrderPreserved() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  a varchar(10)
+                  b varchar(10)
+                  !(b, a)
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = pgSql(ddl)
+        assertTrue(sql.contains("UNIQUE (b, a)"), "Expected declaration order preserved in:\n$sql")
+    }
+
+    @Test
+    fun testTwoSingletonUniques() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  !a varchar(10)
+                  !b varchar(10)
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val table = db.schemas["s"]!!.tables["t"]!!
+        assertTrue(table.indices.isEmpty())
+        val sql = pgSql(ddl)
+        assertEquals(2, Regex("NOT NULL UNIQUE").findAll(sql).count(), "Expected two column-level UNIQUEs in:\n$sql")
+        assertFalse(sql.contains("UNIQUE (a, b)"), "Singleton markers must not group in:\n$sql")
+    }
+
+    @Test
+    fun testSeparateIndexes() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  a varchar(10)
+                  b varchar(10)
+                  +c varchar(10)
+                  +(a, b)
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = pgSql(ddl)
+        assertTrue(sql.contains("CREATE INDEX t_a_b_idx ON t (a, b)"), "Expected composite index in:\n$sql")
+        assertTrue(sql.contains("CREATE INDEX t_c_idx ON t (c)"), "Expected singleton index in:\n$sql")
+        assertFalse(sql.contains("(a, b, c)"), "Indexed fields must not be grouped together in:\n$sql")
+    }
+
+    @Test
+    fun testOverlappingGroups() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  +a varchar(10)
+                  b varchar(10)
+                  !(a, b)
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = pgSql(ddl)
+        assertTrue(sql.contains("UNIQUE (a, b)"), "Expected composite UNIQUE in:\n$sql")
+        assertTrue(sql.contains("CREATE INDEX t_a_idx ON t (a)"), "Expected singleton index on overlapping field in:\n$sql")
+    }
+
+    @Test
+    fun testUnknownFieldInGroup() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  a varchar(10)
+                  !(a, nope)
+                }
+              }
+            }
+        """.trimIndent()
+        assertFailsWith<com.republicate.kddl.SemanticException> {
+            parse(CharStreams.fromString(ddl))
+        }
+    }
+
+    @Test
+    fun testKddlRoundTrip() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  provider varchar(32)
+                  external_id varchar(255)
+                  +stamp timestamp
+                  !(provider, external_id)
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val output = db.display().toString()
+        assertTrue(output.contains("!(provider, external_id)"), "Expected constraint group in KDDL output: $output")
+        assertTrue(output.contains("+stamp"), "Expected indexed marker in KDDL output: $output")
+        // reparse the output: must yield the same constraint
+        val db2 = parse(CharStreams.fromString(output))
+        val table2 = db2.schemas["s"]!!.tables["t"]!!
+        assertEquals(1, table2.indices.size)
+        assertEquals(listOf("provider", "external_id"), table2.indices[0].fields.map { it.name })
+        assertTrue(table2.fields["stamp"]!!.indexed)
+    }
+}
+
 class DefaultValuesTest {
 
     @Test

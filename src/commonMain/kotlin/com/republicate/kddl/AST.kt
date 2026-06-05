@@ -279,7 +279,7 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
         }
     }.toSet()
 
-    fun getOrCreateIndex(fields: Set<ASTField>, unique: Boolean) : ASTIndex =
+    fun getOrCreateIndex(fields: List<ASTField>, unique: Boolean) : ASTIndex =
         indices.firstOrNull { it.fields == fields && it.unique == unique }
             ?: ASTIndex(this, fields, unique).also { indices.add(it) }
 
@@ -326,12 +326,15 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
             else if (!field.isImplicitLinkField()) true
             else fks.none { it in suppressedLinks }
         }
-        if (displayFields.isEmpty() && parent == null) {
+        if (displayFields.isEmpty() && indices.isEmpty() && parent == null) {
             builder.appendLine(" {}")
         } else {
             builder.appendLine(" {")
             for (field in displayFields) {
                 field.display("$indent  ", builder)
+            }
+            for (index in indices) {
+                index.display("$indent  ", builder)
             }
             builder.appendLine("${indent}}")
         }
@@ -410,6 +413,7 @@ class ASTField(
         builder.append(indent)
         if (primaryKey) builder.append('*')
         else if (unique) builder.append('!')
+        else if (indexed) builder.append('+')
         builder.append(name)
         val fk = getForeignKeys().firstOrNull()
         if (fk != null) {
@@ -434,12 +438,20 @@ class ASTField(
     }
 }
 
-// CB TODO - single column unique indices are created by default, no need to create it explicitly
+// column order matters: fields is ordered
 class ASTIndex(
     val table: ASTTable,
-    val fields: Set<ASTField>,
+    val fields: List<ASTField>,
     val unique: Boolean
-)
+) {
+    fun display(indent: String, builder: StringBuilder): StringBuilder {
+        builder.append(indent)
+        builder.append(if (unique) '!' else '+')
+        builder.append(fields.joinToString(", ", "(", ")") { it.name })
+        builder.appendLine()
+        return builder
+    }
+}
 
 // CB TODO - for now we don't store pk fields, hoping that it's either a single field PK or that fields are named the same
 // CB TODO - we consider "cascade" but not "set null"

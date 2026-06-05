@@ -150,6 +150,14 @@ fun buildAst(
                 }
                 table.fields[field.name] = field
             }
+            // constraint groups, after all fields are known
+            for (astConstraint in astTable.constraint()) {
+                val unique = astConstraint.unique != null
+                val groupFields = astConstraint.identifier().map {
+                    table.fields[it.text] ?: throw SemanticException("field not found in constraint: ${table.name}.${it.text}")
+                }
+                table.getOrCreateIndex(groupFields, unique)
+            }
         }
         for (astLink in astSchema.link()) {
             processLinkChain(astLink, database, schema)
@@ -366,6 +374,11 @@ private fun copyTable(srcTable: ASTTable, targetSchema: ASTSchema): ASTTable {
             srcFk.nonNull, srcFk.unique, srcFk.cascade, srcFk.direction
         )
         newTable.foreignKeys.add(newFk)
+    }
+
+    // Copy constraint groups
+    for (srcIndex in srcTable.indices) {
+        newTable.getOrCreateIndex(srcIndex.fields.map { newTable.fields[it.name]!! }, srcIndex.unique)
     }
 
     return newTable

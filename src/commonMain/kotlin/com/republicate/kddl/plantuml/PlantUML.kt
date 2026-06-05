@@ -52,12 +52,21 @@ class PlantUMLFormatter : Formatter {
             val fields = asm.fields.values.filter {
                 !(it.isDefaultKey() || it.isLinkField() && it.isImplicitLinkField()) // CB TODO - we're scanning twice the foreign keys
             }
-            if (fields.isNotEmpty()) {
+            if (fields.isNotEmpty() || asm.indices.isNotEmpty()) {
                 ret.append(" {")
 
                 for (field in fields) {
                     ret.append(EOL)
                     ret.append(format(field, "${indent}  {field} "))
+                }
+                // constraint groups
+                if (asm.indices.isNotEmpty()) {
+                    ret.append("$EOL${indent}  --")
+                    for (index in asm.indices) {
+                        ret.append("$EOL${indent}  {field} ")
+                        ret.append(if (index.unique) '!' else '+')
+                        ret.append(index.fields.joinToString(", ", "(", ")") { it.name })
+                    }
                 }
                 ret.append("$EOL$indent}")
             }
