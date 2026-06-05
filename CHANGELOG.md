@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.22
+- Add composite unique/index constraint groups: `!(a, b)` and `+(a, b)` lines inside a table block (repeatable, may overlap; column order is declaration order)
+- **Semantic change**: multiple `+` fields now produce one index each; the previous implicit grouping of all indexed fields into a single composite index is gone (composite is spelled `+(a, b)`)
+- Non-unique indexes are now emitted as `CREATE INDEX` statements (the previous inline `INDEX (...)` was invalid PostgreSQL)
+- KDDL output: render the `+` indexed marker (was dropped) and constraint group lines
+- JDBC reverse engineering: multi-column unique indexes are now mapped to `!(a, b)` groups instead of being dropped (or mis-attributed on odd column counts)
+
 ## 0.21
 - Downgrade `mysql-connector-j` to 8.4.0 (last release on protobuf-java 3.x) to avoid forcing protobuf 4.x onto consumer buildscript classpaths and breaking AGP's Tink-based release tasks (`NoSuchMethodError` on `Keyset.makeExtensionsImmutable`)
 

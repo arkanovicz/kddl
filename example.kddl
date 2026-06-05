@@ -40,6 +40,7 @@ database example {
       gender char?                   // field types are mandatory for postgresql
       firstname varchar
       lastname varchar
+      !(firstname, lastname)         // composite unique constraint; '+(a, b)' declares a composite index
     }
 
     table location {

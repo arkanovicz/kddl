@@ -109,6 +109,7 @@ database geo {
       gender char?                   // field types are mandatory for postgresql
       firstname varchar(200)
       +lastname varchar(200)         // field is indexed
+      !(firstname, lastname)         // composite unique constraint; '+(a, b)' declares a composite index
     }
 
     table location {
