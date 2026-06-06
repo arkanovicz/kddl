@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.23
+- Add partial (conditional) constraint groups: `!(a, b) where c is null` — conditions are restricted to `c is null`, `c is not null`, `flag` and `not flag` so identifiers stay transformable per dialect
+- PostgreSQL renders conditional unique groups as `CREATE UNIQUE INDEX <table>_<cols>_uidx ... WHERE ...` (no inline `UNIQUE`); conditional `+(...)` groups as partial `CREATE INDEX`
+- HyperSQL (no partial-index support) fails with a `SemanticException` instead of emitting silently stronger DDL
+- Semantic checks: condition field must exist, be boolean for the bare/`not` forms, be nullable for the `is [not] null` forms
+- JDBC reverse engineering reads `FILTER_CONDITION`: kddl-expressible conditions map back to `where` tails, others skip the index with a warning (previously a partial unique index silently became an unconditional one)
+- Fix: constraint groups can now reference link-created fields (resolution deferred until after links; previously broke KDDL round-trip)
+- **Reserved words**: `where`, `is`, `not` are now keywords and can no longer be used as identifiers
+
 ## 0.22
 - Add composite unique/index constraint groups: `!(a, b)` and `+(a, b)` lines inside a table block (repeatable, may overlap; column order is declaration order)
 - **Semantic change**: multiple `+` fields now produce one index each; the previous implicit grouping of all indexed fields into a single composite index is gone (composite is spelled `+(a, b)`)

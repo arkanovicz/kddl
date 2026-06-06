@@ -7,6 +7,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
 
     override val supportsEnums = true
     override val supportsInheritance = true
+    override val supportsPartialIndex = true
     override val scopedObjectNames = true
 
     private fun defaultExpression(field: ASTField): String? {

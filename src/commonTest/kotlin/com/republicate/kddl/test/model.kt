@@ -577,6 +577,125 @@ class CompositeConstraintsTest {
     }
 }
 
+class PartialConstraintsTest {
+
+    private fun pgSql(ddl: String) =
+        com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false)
+            .format(parse(CharStreams.fromString(ddl)))
+
+    private fun delegation(constraint: String) = """
+        database test {
+          schema s {
+            table dude { *dude_id serial }
+            table topic { *topic_id serial }
+            table delegation {
+              from_dude --> dude
+              to_dude --> dude
+              topic_id --> topic
+              delegated_at timestamp = now()
+              removed_at timestamp?
+              active boolean?
+              $constraint
+            }
+          }
+        }
+    """.trimIndent()
+
+    @Test
+    fun testPartialUnique() {
+        val ddl = delegation("!(from_dude, topic_id) where removed_at is null")
+        val db = parse(CharStreams.fromString(ddl))
+        val table = db.schemas["s"]!!.tables["delegation"]!!
+        assertEquals(1, table.indices.size)
+        val index = table.indices[0]
+        assertTrue(index.unique)
+        val condition = index.condition
+        assertNotNull(condition)
+        assertEquals("removed_at", condition.field.name)
+        assertEquals(com.republicate.kddl.ASTCondition.Op.IS_NULL, condition.op)
+        val sql = pgSql(ddl)
+        assertTrue(sql.contains("CREATE UNIQUE INDEX delegation_from_dude_topic_id_uidx ON delegation (from_dude, topic_id) WHERE removed_at IS NULL;"),
+            "Expected partial unique index in:\n$sql")
+        assertFalse(sql.contains("UNIQUE (from_dude, topic_id)"), "Conditional group must not render inline in:\n$sql")
+    }
+
+    @Test
+    fun testPartialIndex() {
+        val sql = pgSql(delegation("+(to_dude) where removed_at is not null"))
+        assertTrue(sql.contains("CREATE INDEX delegation_to_dude_idx ON delegation (to_dude) WHERE removed_at IS NOT NULL;"),
+            "Expected partial index in:\n$sql")
+    }
+
+    @Test
+    fun testBooleanConditions() {
+        val sql = pgSql(delegation("!(from_dude, topic_id) where active"))
+        assertTrue(sql.contains("WHERE active;"), "Expected boolean condition in:\n$sql")
+        val negSql = pgSql(delegation("!(from_dude, topic_id) where not active"))
+        assertTrue(negSql.contains("WHERE NOT active;"), "Expected negated boolean condition in:\n$negSql")
+    }
+
+    @Test
+    fun testConditionIdentifierTransformed() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  a varchar(10)
+                  removedAt timestamp?
+                  !(a) where removedAt is null
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = pgSql(ddl)
+        assertTrue(sql.contains("WHERE removed_at IS NULL"), "Expected transformed identifier in condition in:\n$sql")
+    }
+
+    @Test
+    fun testHyperSqlRejectsPartialIndex() {
+        val ddl = delegation("!(from_dude, topic_id) where removed_at is null")
+        assertFailsWith<com.republicate.kddl.SemanticException> {
+            com.republicate.kddl.hypersql.HyperSQLFormatter(false, false, false)
+                .format(parse(CharStreams.fromString(ddl)))
+        }
+    }
+
+    @Test
+    fun testUnknownConditionField() {
+        assertFailsWith<com.republicate.kddl.SemanticException> {
+            parse(CharStreams.fromString(delegation("!(from_dude, topic_id) where nope is null")))
+        }
+    }
+
+    @Test
+    fun testNonBooleanConditionField() {
+        assertFailsWith<com.republicate.kddl.SemanticException> {
+            parse(CharStreams.fromString(delegation("!(from_dude, topic_id) where removed_at")))
+        }
+    }
+
+    @Test
+    fun testNonNullableConditionField() {
+        assertFailsWith<com.republicate.kddl.SemanticException> {
+            parse(CharStreams.fromString(delegation("!(from_dude, topic_id) where delegated_at is null")))
+        }
+    }
+
+    @Test
+    fun testKddlRoundTrip() {
+        val ddl = delegation("!(from_dude, topic_id) where removed_at is null")
+        val db = parse(CharStreams.fromString(ddl))
+        val output = db.display().toString()
+        assertTrue(output.contains("!(from_dude, topic_id) where removed_at is null"),
+            "Expected condition in KDDL output: $output")
+        val db2 = parse(CharStreams.fromString(output))
+        val index2 = db2.schemas["s"]!!.tables["delegation"]!!.indices.single()
+        assertEquals(com.republicate.kddl.ASTCondition.Op.IS_NULL, index2.condition?.op)
+        assertEquals("removed_at", index2.condition?.field?.name)
+    }
+}
+
 class DefaultValuesTest {
 
     @Test

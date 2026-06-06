@@ -66,6 +66,7 @@ class PlantUMLFormatter : Formatter {
                         ret.append("$EOL${indent}  {field} ")
                         ret.append(if (index.unique) '!' else '+')
                         ret.append(index.fields.joinToString(", ", "(", ")") { it.name })
+                        index.condition?.let { ret.append(" $it") }
                     }
                 }
                 ret.append("$EOL$indent}")

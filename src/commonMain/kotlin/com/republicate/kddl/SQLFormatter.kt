@@ -6,6 +6,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
 
     open val supportsEnums = false
     open val supportsInheritance = false
+    open val supportsPartialIndex = false
     open val scopedObjectNames = false
     open fun defineEnum(typeName: String, values: List<String>) = ""
     open fun defineInheritedView(table: ASTTable) = ""
@@ -171,8 +172,8 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
             ret.append("  class varchar(30)")
         }
 
-        // unique constraint groups
-        for (index in asm.indices.filter { it.unique }) {
+        // unique constraint groups (conditional ones become partial unique indexes below)
+        for (index in asm.indices.filter { it.unique && it.condition == null }) {
             val indexCols = index.fields.joinToString(", ") { transform(it.name) }
             if (firstField) firstField = false else ret.append(",")
             ret.append(EOL)
@@ -197,15 +198,23 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
 
         ret.append("${EOL})$END${EOL}")
 
-        // non-unique indexes: constraint groups plus singleton '+' fields
+        if (!supportsPartialIndex && asm.indices.any { it.condition != null }) {
+            throw SemanticException("partial indexes not supported by this dialect: table ${asm.name}")
+        }
+
+        // non-unique indexes: constraint groups plus singleton '+' fields,
+        // then conditional unique groups as partial unique indexes
         val indexes = asm.indices.filter { !it.unique }.toMutableList()
         asm.fields.values.filter { it.indexed && !it.primaryKey }.forEach { field ->
             if (indexes.none { it.fields == listOf(field) }) indexes.add(ASTIndex(asm, listOf(field), false))
         }
+        indexes.addAll(asm.indices.filter { it.unique && it.condition != null })
         for (index in indexes) {
-            val rawName = "${asm.name}_${index.fields.joinToString("_") { it.name }}_idx"
+            val rawName = "${asm.name}_${index.fields.joinToString("_") { it.name }}${if (index.unique) "_uidx" else "_idx"}"
             val indexCols = index.fields.joinToString(", ") { transform(it.name) }
-            ret.append("CREATE INDEX${if (idempotent) " IF NOT EXISTS" else ""} ${transform(rawName)} ON $tableName ($indexCols)$END")
+            ret.append("CREATE ${if (index.unique) "UNIQUE " else ""}INDEX${if (idempotent) " IF NOT EXISTS" else ""} ${transform(rawName)} ON $tableName ($indexCols)")
+            index.condition?.let { ret.append(" WHERE ${sqlCondition(it)}") }
+            ret.append(END)
         }
         if (indexes.isNotEmpty()) ret.append(EOL)
 
@@ -214,6 +223,13 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
         }
 
         return ret.toString()
+    }
+
+    protected fun sqlCondition(cond: ASTCondition): String = when (cond.op) {
+        ASTCondition.Op.IS_TRUE -> transform(cond.field.name)
+        ASTCondition.Op.IS_FALSE -> "NOT ${transform(cond.field.name)}"
+        ASTCondition.Op.IS_NULL -> "${transform(cond.field.name)} IS NULL"
+        ASTCondition.Op.IS_NOT_NULL -> "${transform(cond.field.name)} IS NOT NULL"
     }
 
     @Suppress("UNCHECKED_CAST")

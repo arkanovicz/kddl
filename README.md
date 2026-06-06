@@ -110,6 +110,8 @@ database geo {
       firstname varchar(200)
       +lastname varchar(200)         // field is indexed
       !(firstname, lastname)         // composite unique constraint; '+(a, b)' declares a composite index
+      // constraint groups accept a partial-index condition (PostgreSQL only):
+      //   !(a, b) where c is null    — also 'where c is not null', 'where flag', 'where not flag'
     }
 
     table location {

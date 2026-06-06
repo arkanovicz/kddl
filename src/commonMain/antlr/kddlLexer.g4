@@ -37,6 +37,9 @@ JSON: 'json' | 'jsonb' ;
 VARBIT: 'varbit' ;
 CASCADE: 'cascade' ;
 AS: 'as' ;
+WHERE: 'where' ;
+IS: 'is' ;
+NOT: 'not' ;
 OPTION: 'option' ;
 INCLUDE: 'include' ;
 

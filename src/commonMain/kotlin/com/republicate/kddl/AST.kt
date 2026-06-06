@@ -279,9 +279,9 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
         }
     }.toSet()
 
-    fun getOrCreateIndex(fields: List<ASTField>, unique: Boolean) : ASTIndex =
-        indices.firstOrNull { it.fields == fields && it.unique == unique }
-            ?: ASTIndex(this, fields, unique).also { indices.add(it) }
+    fun getOrCreateIndex(fields: List<ASTField>, unique: Boolean, condition: ASTCondition? = null) : ASTIndex =
+        indices.firstOrNull { it.fields == fields && it.unique == unique && it.condition == condition }
+            ?: ASTIndex(this, fields, unique, condition).also { indices.add(it) }
 
     fun getMaybeInheritedField(name: String) : ASTField? {
         var targetTable : ASTTable? = this
@@ -438,16 +438,36 @@ class ASTField(
     }
 }
 
+// restricted partial-index condition: a single column reference, so identifiers stay transformable per dialect
+data class ASTCondition(
+    val field: ASTField,
+    val op: Op
+) {
+    enum class Op { IS_TRUE, IS_FALSE, IS_NULL, IS_NOT_NULL }
+    override fun toString() = buildString {
+        append("where ")
+        if (op == Op.IS_FALSE) append("not ")
+        append(field.name)
+        when (op) {
+            Op.IS_NULL -> append(" is null")
+            Op.IS_NOT_NULL -> append(" is not null")
+            else -> {}
+        }
+    }
+}
+
 // column order matters: fields is ordered
 class ASTIndex(
     val table: ASTTable,
     val fields: List<ASTField>,
-    val unique: Boolean
+    val unique: Boolean,
+    val condition: ASTCondition? = null
 ) {
     fun display(indent: String, builder: StringBuilder): StringBuilder {
         builder.append(indent)
         builder.append(if (unique) '!' else '+')
         builder.append(fields.joinToString(", ", "(", ")") { it.name })
+        condition?.let { builder.append(' ').append(it) }
         builder.appendLine()
         return builder
     }

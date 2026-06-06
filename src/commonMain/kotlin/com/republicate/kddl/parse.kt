@@ -66,6 +66,8 @@ fun buildAst(
         // Merge included database into this one
         mergeDatabase(database, includedDb)
     }
+    // constraint groups may reference link-created fields: resolve them after all links
+    val deferredConstraints = mutableListOf<Pair<ASTTable, kddlParser.ConstraintContext>>()
     for (astSchema in astDatabase.schema()) {
         // schema
         val schema = ASTSchema(database, astSchema.name!!.text!!)
@@ -150,14 +152,7 @@ fun buildAst(
                 }
                 table.fields[field.name] = field
             }
-            // constraint groups, after all fields are known
-            for (astConstraint in astTable.constraint()) {
-                val unique = astConstraint.unique != null
-                val groupFields = astConstraint.identifier().map {
-                    table.fields[it.text] ?: throw SemanticException("field not found in constraint: ${table.name}.${it.text}")
-                }
-                table.getOrCreateIndex(groupFields, unique)
-            }
+            astTable.constraint().forEach { deferredConstraints.add(table to it) }
         }
         for (astLink in astSchema.link()) {
             processLinkChain(astLink, database, schema)
@@ -167,11 +162,43 @@ fun buildAst(
     for (astLink in astDatabase.link()) {
         processLinkChain(astLink, database, null)
     }
+    // constraint groups, after all fields are known
+    for ((table, astConstraint) in deferredConstraints) {
+        val unique = astConstraint.unique != null
+        val groupFields = astConstraint.identifier().map {
+            table.fields[it.text] ?: throw SemanticException("field not found in constraint: ${table.name}.${it.text}")
+        }
+        val condition = astConstraint.where_tail()?.let { buildCondition(it, table) }
+        table.getOrCreateIndex(groupFields, unique, condition)
+    }
     // options
     for (astOption in astDatabase.option()) {
         database.option(astOption.name!!.text!!, astOption.value!!.text!!)
     }
     return database
+}
+
+private fun buildCondition(astWhere: kddlParser.Where_tailContext, table: ASTTable): ASTCondition {
+    val fieldName = astWhere.cond!!.text
+    val field = table.fields[fieldName]
+        ?: throw SemanticException("field not found in condition: ${table.name}.$fieldName")
+    val op = when {
+        astWhere.neg != null -> ASTCondition.Op.IS_FALSE
+        astWhere.IS() != null -> if (astWhere.isnot != null) ASTCondition.Op.IS_NOT_NULL else ASTCondition.Op.IS_NULL
+        else -> ASTCondition.Op.IS_TRUE
+    }
+    when (op) {
+        ASTCondition.Op.IS_TRUE, ASTCondition.Op.IS_FALSE -> {
+            val t = field.type
+            if (t !is FieldType.Primitive || t.base != "boolean")
+                throw SemanticException("condition field must be boolean: ${table.name}.$fieldName")
+        }
+        ASTCondition.Op.IS_NULL, ASTCondition.Op.IS_NOT_NULL ->
+            // on a non-nullable field the condition is vacuous: surely a modeling error
+            if (field.nonNull)
+                throw SemanticException("condition field must be nullable: ${table.name}.$fieldName")
+    }
+    return ASTCondition(field, op)
 }
 
 fun processLinkChain(astLink: kddlParser.LinkContext, database: ASTDatabase, defSchema: ASTSchema?) {
@@ -378,7 +405,8 @@ private fun copyTable(srcTable: ASTTable, targetSchema: ASTSchema): ASTTable {
 
     // Copy constraint groups
     for (srcIndex in srcTable.indices) {
-        newTable.getOrCreateIndex(srcIndex.fields.map { newTable.fields[it.name]!! }, srcIndex.unique)
+        val condition = srcIndex.condition?.let { ASTCondition(newTable.fields[it.field.name]!!, it.op) }
+        newTable.getOrCreateIndex(srcIndex.fields.map { newTable.fields[it.name]!! }, srcIndex.unique, condition)
     }
 
     return newTable

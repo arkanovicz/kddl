@@ -110,14 +110,17 @@ class ReverseEngineer(val url: String) {
             keys.add(it.getString("COLUMN_NAME"))
         }
 
-        // index name -> ordered column names (JDBC returns rows ordered by ORDINAL_POSITION)
-        val uniqueIndices = mutableMapOf<String, MutableList<String>>()
+        // index name -> ordered column names (JDBC returns rows ordered by ORDINAL_POSITION) + filter condition
+        val uniqueIndices = mutableMapOf<String, Pair<MutableList<String>, String?>>()
         uniqueIndices(table.schema.name, table.name) {
             val indexName = it.getString("INDEX_NAME")
             val colName = it.getString("COLUMN_NAME") ?: return@uniqueIndices // skip statistics rows
-            uniqueIndices.getOrPut(indexName) { mutableListOf() }.add(colName)
+            val filter = it.getString("FILTER_CONDITION")?.takeUnless(String::isBlank)
+            uniqueIndices.getOrPut(indexName) { Pair(mutableListOf(), filter) }.first.add(colName)
         }
-        val uniqueCols = uniqueIndices.values.filter { it.size == 1 }.flatten().toSet()
+        // partial indexes must not mark fields as plainly unique
+        val uniqueCols = uniqueIndices.values.filter { it.first.size == 1 && it.second == null }
+            .flatMap { it.first }.toSet()
 
         fields(table.schema.name, table.name) {
             var size: Int? = it.getInt("COLUMN_SIZE")
@@ -152,9 +155,44 @@ class ReverseEngineer(val url: String) {
             table.fields[fieldName] = field
         }
 
-        // composite unique indices as constraint groups, skipping the PK's own index
-        uniqueIndices.values.filter { it.size > 1 && it.toSet() != keys }.forEach { cols ->
-            table.getOrCreateIndex(cols.map { table.fields[it]!! }, true)
+        // composite or partial unique indices as constraint groups, skipping the PK's own index
+        for ((indexName, entry) in uniqueIndices) {
+            val (cols, filter) = entry
+            if (cols.toSet() == keys) continue
+            var condition: ASTCondition? = null
+            if (filter != null) {
+                condition = parseFilterCondition(filter, table)
+                if (condition == null) {
+                    // a silent unconditional group would be a *stronger* constraint: skip the index entirely
+                    System.err.println("warning: skipping partial unique index $indexName on ${table.name}: condition not expressible in kddl: $filter")
+                    continue
+                }
+            }
+            if (cols.size > 1 || condition != null) {
+                table.getOrCreateIndex(cols.map { table.fields[it]!! }, true, condition)
+            }
+        }
+    }
+
+    companion object {
+        // only the four kddl-expressible forms: col IS [NOT] NULL, col, NOT col
+        private val filterPatterns = listOf(
+            Regex("""^(\S+)\s+IS\s+NOT\s+NULL$""", RegexOption.IGNORE_CASE) to ASTCondition.Op.IS_NOT_NULL,
+            Regex("""^(\S+)\s+IS\s+NULL$""", RegexOption.IGNORE_CASE) to ASTCondition.Op.IS_NULL,
+            Regex("""^NOT\s+(\S+)$""", RegexOption.IGNORE_CASE) to ASTCondition.Op.IS_FALSE,
+            Regex("""^(\S+)$""") to ASTCondition.Op.IS_TRUE,
+        )
+
+        internal fun parseFilterCondition(filter: String, table: ASTTable): ASTCondition? {
+            var expr = filter.trim()
+            while (expr.startsWith('(') && expr.endsWith(')')) expr = expr.substring(1, expr.length - 1).trim()
+            for ((pattern, op) in filterPatterns) {
+                val match = pattern.find(expr) ?: continue
+                val colName = match.groupValues[1].removeSurrounding("\"")
+                val field = table.fields[colName] ?: return null
+                return ASTCondition(field, op)
+            }
+            return null
         }
     }
 
