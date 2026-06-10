@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.24
+- Fix: HyperSQL enum fields were rendered as a dangling `enum_<name>` column type that was never defined (HSQLDB has no native `ENUM`), so the create script could not be applied. Enums are now defined as CHECKed varchar domains: `CREATE DOMAIN enum_<name> AS VARCHAR(<longest label>) CHECK (VALUE IN (...))`
+- The `enum_<name>` type rendering is now gated on the same `supportsEnums` switch as the type definitions: a dialect without native enum support falls back to `varchar(<longest label>)` instead of emitting an undefined type
+- remove dialects aliases (`postgres` dropped ; now `postgresql` or `hypersql`)
+
 ## 0.23
 - Add partial (conditional) constraint groups: `!(a, b) where c is null` — conditions are restricted to `c is null`, `c is not null`, `flag` and `not flag` so identifiers stay transformable per dialect
 - PostgreSQL renders conditional unique groups as `CREATE UNIQUE INDEX <table>_<cols>_uidx ... WHERE ...` (no inline `UNIQUE`); conditional `+(...)` groups as partial `CREATE INDEX`

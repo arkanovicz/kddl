@@ -341,6 +341,78 @@ class NamedEnumSQLTest {
     }
 }
 
+class HyperSqlEnumTest {
+
+    private fun hsql(ddl: String) =
+        com.republicate.kddl.hypersql.HyperSQLFormatter(false, false, false)
+            .format(parse(CharStreams.fromString(ddl)))
+
+    @Test
+    fun testInlineEnumProducesDomain() {
+        // HSQLDB has no native ENUM: inline enums must be defined as CHECKed varchar domains,
+        // not left as dangling enum_<name> column types (the bug seagull hit).
+        val ddl = """
+            database d {
+              schema s {
+                table booking {
+                  *id serial
+                  status enum('pending','confirmed','cancelled') = 'pending'
+                  kind enum('pairings','standings')
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = hsql(ddl)
+        assertTrue(sql.contains("CREATE DOMAIN enum_status AS VARCHAR(9) CHECK (VALUE IN ('pending', 'confirmed', 'cancelled'));"),
+            "Expected status domain in:\n$sql")
+        assertTrue(sql.contains("CREATE DOMAIN enum_kind AS VARCHAR(9) CHECK (VALUE IN ('pairings', 'standings'));"),
+            "Expected kind domain in:\n$sql")
+        // columns reference the domains
+        assertTrue(sql.contains("status enum_status"), "Expected status column typed by domain in:\n$sql")
+        assertTrue(sql.contains("kind enum_kind"), "Expected kind column typed by domain in:\n$sql")
+    }
+
+    @Test
+    fun testNamedEnumProducesSingleDomain() {
+        val ddl = """
+            database d {
+              schema s {
+                enum status(pending, active)
+                table a { *id serial  s status }
+                table b { *id serial  s status }
+              }
+            }
+        """.trimIndent()
+        val sql = hsql(ddl)
+        assertEquals(1, Regex("CREATE DOMAIN enum_status ").findAll(sql).count(),
+            "Expected a single shared domain for the named enum in:\n$sql")
+    }
+}
+
+class EnumFallbackTest {
+
+    // a dialect that does not support enums must store them as a varchar, never as a dangling enum_<name>
+    private class NoEnumFormatter : com.republicate.kddl.SQLFormatter(false, false, false)
+
+    @Test
+    fun testEnumFallsBackToVarchar() {
+        val ddl = """
+            database d {
+              schema s {
+                table t {
+                  *id serial
+                  status enum('pending','confirmed','cancelled')
+                }
+              }
+            }
+        """.trimIndent()
+        val sql = NoEnumFormatter().format(parse(CharStreams.fromString(ddl)))
+        assertTrue(sql.contains("status varchar(9)"), "Expected varchar fallback sized to longest label in:\n$sql")
+        assertFalse(sql.contains("enum_status"), "No-enum dialect must not emit a dangling enum type in:\n$sql")
+        assertFalse(sql.contains("CREATE TYPE"), "No-enum dialect must not define enum types in:\n$sql")
+    }
+}
+
 class FieldModifiersTest {
 
     @Test

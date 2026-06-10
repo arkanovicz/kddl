@@ -14,10 +14,17 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
 
     // SQL type name for a field's type
     protected fun sqlTypeName(field: ASTField): String = when (val t = field.type) {
-        is FieldType.NamedEnum -> "enum_${transform(t.enum.name).removeSurrounding(Q)}"
-        is FieldType.InlineEnum -> "enum_${transform(field.name).removeSurrounding(Q)}"
+        is FieldType.NamedEnum ->
+            if (supportsEnums) "enum_${transform(t.enum.name).removeSurrounding(Q)}"
+            else enumFallbackType(t.enum.values)
+        is FieldType.InlineEnum ->
+            if (supportsEnums) "enum_${transform(field.name).removeSurrounding(Q)}"
+            else enumFallbackType(t.values)
         is FieldType.Primitive -> mapType(t.name) ?: t.name
     }
+
+    // dialects without native enum support store an enum as a varchar wide enough for its longest label
+    private fun enumFallbackType(values: List<String>) = "varchar(${values.maxOf { it.length }})"
 
     protected open val END = ";${EOL}"
     protected open val Q = if (quoted) "\"" else ""
