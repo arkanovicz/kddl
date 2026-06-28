@@ -262,4 +262,6 @@ Please adapt the installation and run scripts.
 
 + a field can be implied in one foreign key at most (but it may be a good practice...)
 + multivalued foreign keys fields must be named after target primary key fields (quite the same...)
-+ inline anonymous `enum(...)` types are named after the field; two inline enums with the same field name across different tables will clash. Use a named enum (`enum X(...)` then `field X`) to share a type explicitly.
++ inline anonymous `enum(...)` types are named after the field; two inline enums with the same field name across different tables will clash. Use a named enum (`enum X(...)` then `field X`) to share a type explicitly
++ no table forward reference in the kddl file - it disallows circular references in a model foreign keys chain (there are very specific cases where this is necessary, but if it can be avoided it is most of the time a bad practice)
+
