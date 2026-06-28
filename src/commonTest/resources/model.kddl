@@ -1,7 +1,7 @@
 // Definition for database geo
 
 // Supported data types:
-//   boolean, integer, serial, long, float, double, numeric(*n*,p), money,
+//   boolean, integer, bigint, serial, bigserial, long, float, double, numeric(*n*,p), money,
 //   time, timetz, date, datetime, datetimetz, char, char(*n), varchar(*n*), text,
 //   enum( 'value1' [,] 'value2' ...)
 
