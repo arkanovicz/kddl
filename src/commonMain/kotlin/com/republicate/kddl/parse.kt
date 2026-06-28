@@ -142,7 +142,7 @@ fun buildAst(
                     val cascade = astField.CASCADE() != null
                     val direction = astField.direction()?.text ?: ""
                     val fieldType: FieldType = refPk.first().type.let {
-                        if (it is FieldType.Primitive && it.name == "serial") FieldType.Primitive("int") else it
+                        if (it is FieldType.Primitive && it.isSerial) FieldType.Primitive(it.fkType) else it
                     }
                     ASTField(table, fieldName, fieldType, pk, nonNull, unique)
                         .also {
@@ -240,7 +240,7 @@ fun processLinkPair(
             val pk = it.getOrCreatePrimaryKey()
             val fkFields = pk.map {
                 val type: FieldType = it.type.let { t ->
-                    if (t is FieldType.Primitive && t.name == "serial") FieldType.Primitive("int") else t
+                    if (t is FieldType.Primitive && t.isSerial) FieldType.Primitive(t.fkType) else t
                 }
                 val fkField = ASTField(linkTable, it.name, type, false, true, false)
                 linkTable.fields[it.name] = fkField
@@ -263,15 +263,15 @@ fun processLinkPair(
                     if (fkField == null) it.name
                     else "${pkTable.name.withoutCapital()}${it.name.withCapital()}"
                 val type: FieldType = it.type.let { t ->
-                    if (t is FieldType.Primitive && t.name == "serial") FieldType.Primitive("int") else t
+                    if (t is FieldType.Primitive && t.isSerial) FieldType.Primitive(t.fkType) else t
                 }
                 fkField = ASTField(fkTable, fieldName, type, false, nonNull, false)
                 fkTable.fields[fieldName] = fkField
             }
             val fkT = fkField.type
             val pkT = it.type
-            if (fkT != pkT && pkT is FieldType.Primitive && pkT.name == "serial"
-                && (fkT !is FieldType.Primitive || fkT.name !in arrayOf("int", "long")))
+            if (fkT != pkT && pkT is FieldType.Primitive && pkT.isSerial
+                && (fkT !is FieldType.Primitive || fkT.name !in pkT.serialFkTypes))
                 throw SemanticException("link ${fkTable.name} -> ${pkTable.name}: incompatible fk/pk field types")
             fkField
         }.toSet()

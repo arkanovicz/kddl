@@ -351,6 +351,16 @@ val keySuffix = "_id"
 sealed class FieldType {
     class Primitive(val name: String) : FieldType() {
         val base: String get() = name.substringBefore('(')
+        // auto-incrementing integer pk types
+        val isSerial: Boolean get() = name == "serial" || name == "bigserial"
+        // plain integer type a foreign key uses to reference this serial pk (serial is int4, bigserial int8)
+        val fkType: String get() = if (name == "bigserial") "bigint" else "int"
+        // type names an fk field may carry when referencing this serial pk
+        val serialFkTypes: Set<String> get() = when (name) {
+            "serial" -> setOf("int", "integer", "long")
+            "bigserial" -> setOf("bigint", "long")
+            else -> emptySet()
+        }
         override fun toString() = name
         override fun equals(other: Any?) = other is Primitive && other.name == name
         override fun hashCode() = name.hashCode()
@@ -391,7 +401,7 @@ class ASTField(
         }
     }
     fun isDefaultKey() : Boolean {
-        return primaryKey && type is FieldType.Primitive && type.name == "serial" && name == "${table.name}$keySuffix" // TODO - handle suffix
+        return primaryKey && type is FieldType.Primitive && type.isSerial && name == "${table.name}$keySuffix" // TODO - handle suffix
     }
     fun getForeignKeys() : List<ASTForeignKey> = table.foreignKeys.filter { this in it.fields }
     fun isLinkField() : Boolean = !getForeignKeys().isEmpty()
@@ -405,7 +415,7 @@ class ASTField(
         if (type !is FieldType.Primitive) return false
         val pkType = pk.type
         if (pkType !is FieldType.Primitive) return false
-        if (type.name !in listOf("int", "integer", "long", pkType.name)) return false
+        if (type.name !in listOf("int", "integer", "long", "bigint", pkType.name)) return false
         return true
     }
 
@@ -493,8 +503,8 @@ class ASTForeignKey(
         val pkT = pk.type
         val fkT = fk.type
         val typesMatch = pkT == fkT || (
-            pkT is FieldType.Primitive && pkT.name == "serial"
-            && fkT is FieldType.Primitive && fkT.name in setOf("int", "integer", "long")
+            pkT is FieldType.Primitive && pkT.isSerial
+            && fkT is FieldType.Primitive && fkT.name in pkT.serialFkTypes
         )
         if (!typesMatch) return false
         return true
