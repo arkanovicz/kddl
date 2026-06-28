@@ -25,7 +25,8 @@ class PostgreSQLReverseFilter(val metadata: DatabaseMetaData): ReverseFilter {
 
     override fun filterType(name: String, type: String, default: String?): Pair<String, String?> {
         return when {
-            default?.startsWith("nextval(") ?: false -> Pair("serial", null)
+            default?.startsWith("nextval(") ?: false ->
+                Pair(if (type == "long" || type == "bigint") "bigserial" else "serial", null)
             default?.contains("::") ?: false -> Pair(type, default!!.substring(0, default!!.indexOf("::")))
             // CB TODO - for now we use the convention that in the database,
             // all enum fields with the same name share the same type with name enum_${name}

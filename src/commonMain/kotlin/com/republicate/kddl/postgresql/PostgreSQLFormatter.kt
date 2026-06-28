@@ -95,7 +95,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
             val pkName = transform(pk.name)
 
             val pkT = pk.type
-            if (pkT is FieldType.Primitive && pkT.name == "serial") {
+            if (pkT is FieldType.Primitive && pkT.isSerial) {
 
                 var seqName = "${parent.name}_${pkName.removeSurrounding(Q)}_seq"
                 if (table.schema != parent.schema) seqName = "${transform(parent.schema.name)}.$seqName"
