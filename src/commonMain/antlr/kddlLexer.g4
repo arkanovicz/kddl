@@ -15,6 +15,7 @@ BOOLEAN: 'boolean' ;
 BIGINT: 'bigint'  ( 'eger' )? ;
 INT: 'int' ( 'eger' )? ;
 SMALLINT: 'smallint' ( 'eger' )? ;
+BIGSERIAL: 'bigserial' ;
 SERIAL: 'serial' ;
 LONG: 'long' ;
 FLOAT: 'float' ;

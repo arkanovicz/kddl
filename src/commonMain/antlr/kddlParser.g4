@@ -15,13 +15,14 @@ link: linkElement (connector linkElement)+ CASCADE? direction? ;
 linkElement: ref=qualified (optional=QM)? ;
 connector: (left_mult=ST | left_single=LA)? MN+ (right_mult=ST | right_single=RA)? ;
 field: ( pk=ST | unique=EM | indexed=PL )? name=identifier (type ( optional=QM )? ( AS alias=LABEL )? default? | default | MN+ RA reference=qualified ( optional=QM )? CASCADE? direction? ) ;
-identifier: LABEL | BOOLEAN | BIGINT | INT | SMALLINT | SERIAL | LONG | FLOAT | DOUBLE
+identifier: LABEL | BOOLEAN | BIGINT | INT | SMALLINT | BIGSERIAL | SERIAL | LONG | FLOAT | DOUBLE
           | MONEY | NUMERIC | TIME | TIMETZ | DATE | TIMESTAMP | TIMESTAMPTZ | INTERVAL
           | CHAR | VARCHAR | TEXT | BLOB | ENUM | UUID | JSON | VARBIT ;
 type: BOOLEAN
     | BIGINT
     | INT
     | SMALLINT
+    | BIGSERIAL
     | SERIAL
     | LONG
     | FLOAT
