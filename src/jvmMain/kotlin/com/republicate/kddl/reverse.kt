@@ -131,9 +131,9 @@ class ReverseEngineer(val url: String) {
             var dataType =
                 when(sqlType) {
                     Types.ARRAY -> "array" // TODO
-                    Types.OTHER -> typesNamesMap[sqlTypeName] ?: throw SQLException("unhandled sql type: ${sqlType} (${sqlTypeName})")
-                    else -> typesMap[sqlType] ?: throw SQLException("unhandled sql type: ${sqlType} (${it.getString("TYPE_NAME")})")
-                }
+                    Types.OTHER -> typesNamesMap[sqlTypeName]
+                    else -> typesMap[sqlType]
+                } ?: throw SQLException("${table.schema.name}.${table.name}: unhandled sql type $sqlTypeName (JDBC type $sqlType) for column $fieldName")
             val colSize = it.getInt("COLUMN_SIZE")
             val colPrec = it.getInt("DECIMAL_DIGITS")
             var columnDef = it.getString("COLUMN_DEF")
@@ -296,21 +296,22 @@ class ReverseEngineer(val url: String) {
         Types.DATE to "date",
         Types.DOUBLE to "double",
         Types.FLOAT to "float",
-        Types.TINYINT to "byte",
-        Types.SMALLINT to "short",
+        Types.TINYINT to "smallint", // no narrower kddl type
+        Types.SMALLINT to "smallint",
         Types.INTEGER to "integer",
         Types.BIGINT to "long",
         Types.NUMERIC to "numeric",
         Types.DECIMAL to "numeric",
         Types.REAL to "double",
-        Types.SMALLINT to "short",
         Types.TIME to "time",
         Types.TIME_WITH_TIMEZONE to "timetz",
         Types.TIMESTAMP to "timestamp",
         Types.TIMESTAMP_WITH_TIMEZONE to "timestamptz",
         Types.VARCHAR to "varchar",
         Types.LONGVARCHAR to "clob",
-        Types.BINARY to "blob"
+        Types.BINARY to "blob",
+        Types.VARBINARY to "blob",
+        Types.LONGVARBINARY to "blob"
     )
 
     private val typesNamesMap = mapOf<String, String>(
