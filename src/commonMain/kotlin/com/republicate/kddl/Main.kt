@@ -1,6 +1,7 @@
 package com.republicate.kddl
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.CliktError
 import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
@@ -61,7 +62,12 @@ class Kddl: CliktCommand() {
 
     override fun run() {
         val processor = KddlProcessor(input, format, driver, uppercase, quoted, idempotent = !noIdempotent)
-        val ret = processor.process()
+        // a stack trace is noise for the CLI user: report the message, keep the cause
+        val ret = try {
+            processor.process()
+        } catch (e: Exception) {
+            throw CliktError(e.message ?: e.toString(), e)
+        }
         println(ret)
     }
 }
