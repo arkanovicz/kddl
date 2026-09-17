@@ -40,6 +40,30 @@ class ASTEnum(val schema: ASTSchema, name: String, val values: List<String>) : D
 class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
     val enums = mutableMapOf<String, ASTEnum>()
     val tables = mutableMapOf<String, ASTTable>()
+
+    /**
+     * Tables in declaration order: a table comes after its parent and after every table it
+     * references, since kddl resolves references as it parses. Declaration order is kept
+     * between independent tables. A reference cycle cannot be ordered: its tables come last,
+     * in declaration order, and the output will not parse back.
+     */
+    fun orderedTables(): List<ASTTable> {
+        fun dependencies(table: ASTTable) =
+            (listOfNotNull(table.parent) + table.foreignKeys.map { it.towards })
+                .filter { it.schema === this && it !== table }
+        val ordered = mutableListOf<ASTTable>()
+        val done = mutableSetOf<ASTTable>()
+        val pending = mutableSetOf<ASTTable>()
+        fun visit(table: ASTTable) {
+            if (table in done || !pending.add(table)) return // second guard: cycle
+            dependencies(table).forEach(::visit)
+            pending.remove(table)
+            done.add(table)
+            ordered.add(table)
+        }
+        tables.values.forEach(::visit)
+        return ordered
+    }
     override fun display(indent: String, builder: StringBuilder): StringBuilder {
         builder.appendLine("${indent}schema $name {")
         for (enum in enums.values) {
@@ -50,7 +74,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
         val linksInChains = chains.flatMap { it.links }.toSet()
 
         // Output all non-JoinTables, suppressing implicit link fields that are in chains
-        for (table in tables.values) {
+        for (table in orderedTables()) {
             if (table !is JoinTable) {
                 table.display("$indent  ", builder, linksInChains)
             }
@@ -399,6 +423,11 @@ class ASTField(
             if (type !is FieldType.Primitive) return false
             return type.base.equals("varchar", true) || type.base == "char" || type.base == "text" || type.base == "clob"
         }
+        private val temporalTypes = setOf("date", "time", "timetz", "timestamp", "datetime", "timestamptz", "datetimetz", "datetime_tz", "timestamp_tz", "interval")
+        fun isTemporalType(type: FieldType): Boolean =
+            type is FieldType.Primitive && type.base.lowercase() in temporalTypes
+        private val functionCall = Regex("""^\w+\s*\(.*\)$""")
+        fun isFunctionCall(default: Any?) = default is String && functionCall.matches(default)
     }
     fun isDefaultKey() : Boolean {
         return primaryKey && type is FieldType.Primitive && type.isSerial && name == "${table.name}$keySuffix" // TODO - handle suffix
@@ -439,7 +468,8 @@ class ASTField(
             builder.append(" ${type}")
             if (!nonNull) builder.append('?')
             if (default != null) {
-                if (isTextType(type)) builder.append(" = '$default'")
+                val quoted = isTextType(type) || isTemporalType(type) && !isFunctionCall(default)
+                if (quoted) builder.append(" = '$default'")
                 else builder.append(" = $default")
             }
         }

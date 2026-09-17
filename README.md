@@ -40,6 +40,7 @@ Options:
   -q, --quoted       -> quoted identifiers
   -u, --uppercase    -> uppercase identifiers
   -n, --no-idempotent -> disable IF NOT EXISTS clauses in SQL output
+      --debug        -> print the stack trace on error (default: the error message only)
   -h, --help         -> Usage info
 
 ```

@@ -59,15 +59,23 @@ class Kddl: CliktCommand() {
     val uppercase by option("-u", "--uppercase", help="uppercase identifiers").flag()
     val quoted by option("-q", "--quoted", help="quoted identifiers").flag()
     val noIdempotent by option("-n", "--no-if", "--no-idempotent", help="disable IF NOT EXISTS clauses in SQL").flag()
+    val debug by option("--debug", help="print the stack trace on error").flag()
 
     override fun run() {
         val processor = KddlProcessor(input, format, driver, uppercase, quoted, idempotent = !noIdempotent)
-        // a stack trace is noise for the CLI user: report the message, keep the cause
+        // a stack trace is noise for the CLI user, who still needs the causes
         val ret = try {
             processor.process()
         } catch (e: Exception) {
-            throw CliktError(e.message ?: e.toString(), e)
+            if (debug) throw e
+            throw CliktError(e.causalMessages(), e)
         }
         println(ret)
     }
 }
+
+private fun Throwable.causalMessages() =
+    generateSequence(this) { it.cause?.takeIf { cause -> cause !== it } }
+        .map { it.message ?: it::class.simpleName ?: "error" }
+        .distinct()
+        .joinToString(": ")
