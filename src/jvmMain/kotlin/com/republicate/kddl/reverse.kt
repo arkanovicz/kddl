@@ -151,7 +151,9 @@ class ReverseEngineer(val url: String) {
             }
             val nonNull = it.getString("IS_NULLABLE") == "NO"
             val generated = ("YES" == it.getString("IS_AUTOINCREMENT") || "YES" == it.getString("IS_GENERATEDCOLUMN"))
-            val field = ASTField(table, fieldName, dataType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), false /*TODO non-unique indexes*/, columnDef)
+            val fieldType = FieldType.Primitive(dataType)
+            val default = ASTField.coerceDefault(columnDef, fieldType)
+            val field = ASTField(table, fieldName, fieldType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), false /*TODO non-unique indexes*/, default)
             table.fields[fieldName] = field
         }
 

@@ -428,6 +428,23 @@ class ASTField(
             type is FieldType.Primitive && type.base.lowercase() in temporalTypes
         private val functionCall = Regex("""^\w+\s*\(.*\)$""")
         fun isFunctionCall(default: Any?) = default is String && functionCall.matches(default)
+        private val integerTypes = setOf("int", "integer", "bigint", "biginteger", "smallint", "smallinteger", "long", "serial", "bigserial")
+        private val realTypes = setOf("float", "double", "real", "numeric", "decimal", "money")
+        private val numberLiteral = Regex("""^[-+]?\d+(\.\d+)?$""")
+        /**
+         * A numeric literal means what its field says: 0/1 on a boolean is a boolean, an integer keeps
+         * its exactness past 2^53, and on any other field the literal is left alone rather than turned
+         * into a number the field cannot hold.
+         */
+        fun coerceNumber(literal: String, type: FieldType): Any = when ((type as? FieldType.Primitive)?.base?.lowercase()) {
+            "boolean" -> literal.toDouble() != 0.0
+            in integerTypes -> literal.toLongOrNull() ?: literal.toDouble()
+            in realTypes -> literal.toDouble()
+            else -> literal
+        }
+        /** Same, for a default read from a database, where every value arrives as text. */
+        fun coerceDefault(default: String?, type: FieldType): Any? =
+            if (default != null && numberLiteral.matches(default)) coerceNumber(default, type) else default
     }
     fun isDefaultKey() : Boolean {
         return primaryKey && type is FieldType.Primitive && type.isSerial && name == "${table.name}$keySuffix" // TODO - handle suffix

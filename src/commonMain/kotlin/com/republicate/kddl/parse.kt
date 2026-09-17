@@ -95,18 +95,7 @@ fun buildAst(
                 val indexed = astField.indexed != null
                 val field = if (reference == null) {
                     // standard field
-                    var default: Any? = null
                     val astDefault = astField.default()?.expression()
-                    if (astDefault != null) {
-                        default = when {
-                            astDefault.NULL() != null -> null
-                            astDefault.STRING() != null -> astDefault.text.removeSurrounding("'")
-                            astDefault.boolean() != null -> astDefault.text.toBooleanStrict()
-                            astDefault.number() != null -> astDefault.text.toDouble()
-                            astDefault.function() != null -> astDefault.text /* TODO */
-                            else -> throw SemanticException("invalid default value: ${astDefault.text}")
-                        }
-                    }
                     var type: FieldType? = null
                     val astType = astField.type()
                     if (astType != null) {
@@ -133,6 +122,16 @@ fun buildAst(
                     }
                     if (type == null) {
                         throw SemanticException("type not found for field: ${astField.text}")
+                    }
+                    val default = astDefault?.let {
+                        when {
+                            it.NULL() != null -> null
+                            it.STRING() != null -> it.text.removeSurrounding("'")
+                            it.boolean() != null -> it.text.toBooleanStrict()
+                            it.number() != null -> ASTField.coerceNumber(it.text, type)
+                            it.function() != null -> it.text /* TODO */
+                            else -> throw SemanticException("invalid default value: ${it.text}")
+                        }
                     }
                     val alias = astField.alias?.text
                     ASTField(table, fieldName, type, pk, nonNull, unique, indexed, default, alias)

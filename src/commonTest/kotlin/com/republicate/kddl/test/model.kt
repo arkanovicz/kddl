@@ -796,15 +796,39 @@ class DefaultValuesTest {
                   *id serial
                   count integer = 0
                   priority integer = 5
+                  ident bigint = 9007199254740993
                 }
               }
             }
         """.trimIndent()
         val db = parse(CharStreams.fromString(ddl))
         val table = db.schemas["s"]!!.tables["t"]!!
-        // Numbers are parsed as Double
-        assertEquals(0.0, table.fields["count"]!!.default)
-        assertEquals(5.0, table.fields["priority"]!!.default)
+        // a numeric literal takes the type of its field: integers stay exact past 2^53
+        assertEquals(0L, table.fields["count"]!!.default)
+        assertEquals(5L, table.fields["priority"]!!.default)
+        assertEquals(9007199254740993L, table.fields["ident"]!!.default)
+    }
+
+    @Test
+    fun testNumberDefaultTypedByField() {
+        val ddl = """
+            database test {
+              schema s {
+                table t {
+                  *id serial
+                  visible boolean = 1
+                  hidden boolean = 0
+                  price numeric(6,2) = 0.5
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val table = db.schemas["s"]!!.tables["t"]!!
+        // 0/1 on a boolean field is a boolean, as reverse engineering a MySQL tinyint(1) yields
+        assertEquals(true, table.fields["visible"]!!.default)
+        assertEquals(false, table.fields["hidden"]!!.default)
+        assertEquals(0.5, table.fields["price"]!!.default)
     }
 
     @Test
