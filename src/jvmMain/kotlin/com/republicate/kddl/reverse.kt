@@ -43,9 +43,21 @@ fun guessDatabaseName(url: String): String {
     if (qm == -1) qm = url.length
     var slash = Math.max(url.lastIndexOf('/', qm), url.lastIndexOf('\\', qm))
     if (slash == -1) slash = url.lastIndexOf(':', qm)
-    if (slash == -1) return "unknown"
+    if (slash == -1) return guessServerName(url)
     val match = Regex("\\w+").find(url.substring(slash + 1, qm))
-    return match?.value?.let { if (it.isEmpty()) null else it } ?: "unknown"
+    return match?.value?.let { if (it.isEmpty()) null else it } ?: guessServerName(url)
+}
+
+// bracketed ipv6 first: its colons would otherwise read as a port separator
+private val urlHost = Regex("""//(?:[^@/]*@)?(?:\[([^\]]+)]|([^/:?]+))""")
+private val identifier = Regex("""[a-zA-Z_]\w*""")
+
+/** A model spanning a whole server is named after it - when the url holds a name, an address being no name. */
+fun guessServerName(url: String): String {
+    val match = urlHost.find(url) ?: return "unknown"
+    val host = match.groupValues[1].ifEmpty { match.groupValues[2] }
+    if (host == "localhost" || host == "::1" || host.startsWith("127.")) return "localhost"
+    return host.substringBefore('.').takeIf(identifier::matches) ?: "unknown"
 }
 
 class ResultSetIterator(val rs: ResultSet): Iterator<ResultSet> {

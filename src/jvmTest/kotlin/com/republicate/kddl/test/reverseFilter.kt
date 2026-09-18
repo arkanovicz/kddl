@@ -4,6 +4,8 @@ import com.republicate.kddl.ASTCondition
 import com.republicate.kddl.ReverseEngineer
 import com.republicate.kddl.database
 import com.republicate.kddl.field
+import com.republicate.kddl.guessDatabaseName
+import com.republicate.kddl.guessServerName
 import com.republicate.kddl.schema
 import com.republicate.kddl.table
 import kotlin.test.*
@@ -54,5 +56,34 @@ class ReverseFilterConditionTest {
         assertNull(parse("(active = false)"))
         assertNull(parse("(removed_at IS NULL) AND (active)"))
         assertNull(parse("unknown_col IS NULL"))
+    }
+}
+
+class ServerNameTest {
+
+    @Test
+    fun testNamedHost() {
+        assertEquals("myaou", guessServerName("jdbc:mysql://root:pw@myaou.example.com:3306/?useSSL=false"))
+        assertEquals("jeudego", guessServerName("jdbc:postgresql://jeudego/"))
+    }
+
+    @Test
+    fun testLoopback() {
+        assertEquals("localhost", guessServerName("jdbc:mysql://root:pw@127.0.0.1/?useSSL=false"))
+        assertEquals("localhost", guessServerName("jdbc:mysql://localhost:3306/"))
+        assertEquals("localhost", guessServerName("jdbc:mysql://[::1]:3306/"))
+    }
+
+    @Test
+    fun testAddressIsNoName() {
+        // an ip address cannot be a kddl identifier, and half of one would be a lie
+        assertEquals("unknown", guessServerName("jdbc:mysql://192.168.1.50/"))
+        assertEquals("unknown", guessServerName("jdbc:mysql://[2001:db8::1]:3306/"))
+    }
+
+    @Test
+    fun testNamedDatabaseStillWins() {
+        assertEquals("ffg", guessDatabaseName("jdbc:mysql://root:pw@127.0.0.1/ffg?useSSL=false"))
+        assertEquals("localhost", guessDatabaseName("jdbc:mysql://root:pw@127.0.0.1/?useSSL=false"))
     }
 }
