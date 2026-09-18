@@ -72,7 +72,9 @@ class ReverseEngineer(val url: String) {
 
     private val connection = connect(url)
     private val metadata = connection.metaData
-    private val catalog = connection.catalog ?: guessDatabaseName(url)
+    // mysql/mariadb expose databases as catalogs; the url names one unless it stops at the host
+    private val connectionCatalog = connection.catalog?.takeUnless(String::isEmpty)
+    private val catalog = connectionCatalog ?: guessDatabaseName(url)
     private val vendorFilter = ReverseFilter.getReverseFilter(metadata)
 
     fun process(): ASTDatabase {
@@ -244,8 +246,9 @@ class ReverseEngineer(val url: String) {
     // temporary specific mysql version
     private fun schemas(op: (ResultSet) -> Unit) = with(metadata.catalogs) {
         asSequence().filter {
-            // TODO filter system tables depending on each provider
-            true
+            val name = it.getString("TABLE_CAT")
+            // the database the url names, or every one but the server's own when it names none
+            if (connectionCatalog != null) name == connectionCatalog else name !in systemCatalogs
         }.forEach(op)
         close()
     }
@@ -274,7 +277,7 @@ class ReverseEngineer(val url: String) {
     }
 
     private fun uniqueIndices(schema: String, table: String, op: (ResultSet) -> Unit) {
-        with (metadata.getIndexInfo(catalog, schema, table, false, false)) {
+        with (metadata.getIndexInfo(schema, null, table, false, false)) {
             asSequence().filter {
                 !it.getBoolean("NON_UNIQUE")
             }.forEach(op)
@@ -288,6 +291,8 @@ class ReverseEngineer(val url: String) {
             close()
         }
     }
+
+    private val systemCatalogs = setOf("information_schema", "mysql", "performance_schema", "sys")
 
     private val typesMap = mapOf<Int, String>(
         Types.BIT to "boolean",
