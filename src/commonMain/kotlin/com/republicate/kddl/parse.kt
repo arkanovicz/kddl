@@ -88,9 +88,11 @@ fun buildAst(
             for (astField in astTable.field()) {
                 // field
                 val fieldName = astField.name!!.text
-                val reference = database.resolveTable(schema, astField.reference)
+                val astRef = astField.reference()
+                val reference = astRef?.let { database.resolveTable(schema, it.ref) }
+                if (astRef != null && reference == null) throw SemanticException("table not found: ${astRef.ref!!.text}")
                 val pk = astField.pk != null
-                val nonNull = astField.optional == null
+                val nonNull = (astRef?.optional ?: astField.optional) == null
                 val unique = astField.unique != null
                 val indexed = astField.indexed != null
                 val field = if (reference == null) {
@@ -137,6 +139,10 @@ fun buildAst(
                     ASTField(table, fieldName, type, pk, nonNull, unique, indexed, default, alias)
                 } else {
                     // link field
+                    val conn = astRef!!.connector()
+                    // the field itself holds the key, so the reference must point away from it
+                    if (!conn.leftMult || conn.rightMult)
+                        throw SemanticException("a field reference must point at its target: ${astField.text}")
                     val refPk = reference.getOrCreatePrimaryKey()
                     val cascade = astField.CASCADE() != null
                     val direction = astField.direction()?.text ?: ""
@@ -200,38 +206,32 @@ private fun buildCondition(astWhere: kddlParser.Where_tailContext, table: ASTTab
     return ASTCondition(field, op)
 }
 
+// which end of a connector carries the many side
+private val kddlParser.ConnectorContext.leftMult get() = left_mult != null || right_single != null
+private val kddlParser.ConnectorContext.rightMult get() = right_mult != null || left_single != null
+
 fun processLinkChain(astLink: kddlParser.LinkContext, database: ASTDatabase, defSchema: ASTSchema?) {
-    val elements = astLink.linkElement()
-    val connectors = astLink.connector()
     val cascade = astLink.CASCADE() != null
-
-    // Iterate through pairs: (element[i], connector[i], element[i+1])
-    for (i in connectors.indices) {
-        val leftElem = elements[i]
-        val rightElem = elements[i + 1]
-        val conn = connectors[i]
-
-        val left = database.resolveTable(defSchema, leftElem.ref) ?: throw SemanticException("table not found: ${leftElem.text}")
-        val right = database.resolveTable(defSchema, rightElem.ref) ?: throw SemanticException("table not found: ${rightElem.text}")
-
-        processLinkPair(left, leftElem.optional != null, conn, right, rightElem.optional != null, cascade)
+    var left = database.resolveTable(defSchema, astLink.ref) ?: throw SemanticException("table not found: ${astLink.ref!!.text}")
+    for (astRef in astLink.reference()) {
+        val right = database.resolveTable(defSchema, astRef.ref) ?: throw SemanticException("table not found: ${astRef.ref!!.text}")
+        processLinkPair(left, astRef.connector(), right, astRef.optional != null, cascade)
+        left = right
     }
 }
 
 fun processLinkPair(
     left: ASTTable,
-    leftOptional: Boolean,
     conn: kddlParser.ConnectorContext,
     right: ASTTable,
-    rightOptional: Boolean,
+    optional: Boolean,
     cascade: Boolean
 ) {
-    val leftMult = conn.left_mult != null || conn.right_single != null
-    val rightMult = conn.right_mult != null || conn.left_single != null
-    val leftNoNull = !leftOptional
-    val rightNoNull = !rightOptional
+    val leftMult = conn.leftMult
+    val rightMult = conn.rightMult
 
     if (leftMult && rightMult) {
+        if (optional) throw SemanticException("a many-to-many reference cannot be optional: ${left.name} -- ${right.name}")
         // Many-to-many: create join table
         val linkTable = JoinTable(left.schema, left, right)
         left.schema.tables[linkTable.name] = linkTable
@@ -252,7 +252,7 @@ fun processLinkPair(
         // One-to-many
         val pkTable = if (leftMult) right else left
         val fkTable = if (leftMult) left else right
-        val nonNull = if (leftMult) rightNoNull else leftNoNull
+        val nonNull = !optional
         val pk = pkTable.getOrCreatePrimaryKey()
         val fkFields = pk.map {
             var fkField = fkTable.getMaybeInheritedField(it.name)

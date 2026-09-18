@@ -1095,7 +1095,7 @@ class LinkTest {
 
     @Test
     fun testLinkChainWithOptional() {
-        // A? *--* B? --* C: nullable FKs
+        // A *--* B --* C?: '?' marks the reference it closes, so it is the review->product one
         val ddl = """
             database test {
               schema s {
@@ -1111,7 +1111,7 @@ class LinkTest {
                   *review_id serial
                   content text
                 }
-                category? *--* product? --* review
+                category *--* product --* review?
               }
             }
         """.trimIndent()
@@ -1126,7 +1126,7 @@ class LinkTest {
         assertTrue(review.foreignKeys.isNotEmpty())
         val fk = review.foreignKeys.first()
         assertEquals("product", fk.towards.name)
-        assertFalse(fk.nonNull)  // Should be nullable because product?
+        assertFalse(fk.nonNull)  // nullable because the '--* review' reference is optional
     }
 
     @Test

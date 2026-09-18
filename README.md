@@ -125,11 +125,9 @@ database geo {
     location *--> infra.zone // foreign key referencing a table in another schema
 
     // Chain syntax with nullable markers:
-    // category? *--* product? --* review
-    // The '?' after a table makes FKs involving that table nullable
-    // For finer control, use separate declarations:
-    // category *--* product?
-    // product --* review
+    // category *--* product --* review?
+    // A '?' closes a reference ('--* review') and makes that relation's foreign key nullable.
+    // It cannot appear on the leading table, which no reference points at.
   }
 
 }

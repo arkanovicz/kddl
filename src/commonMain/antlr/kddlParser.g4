@@ -11,10 +11,11 @@ table: TABLE name=LABEL ( FS par=qualified direction? )? ( LC ( field | constrai
 constraint: ( unique=EM | indexed=PL ) LP identifier ( CM identifier )* RP where_tail? ;
 where_tail: WHERE ( neg=NOT cond=identifier | cond=identifier ( IS isnot=NOT? NULL )? ) ;
 direction: LP ( UP | DOWN | LEFT | RIGHT ) RP;
-link: linkElement (connector linkElement)+ CASCADE? direction? ;
-linkElement: ref=qualified (optional=QM)? ;
+link: ref=qualified reference+ CASCADE? direction? ;
+// a reference is to a link what a type is to a field, '?' included
+reference: connector ref=qualified (optional=QM)? ;
 connector: (left_mult=ST | left_single=LA)? MN+ (right_mult=ST | right_single=RA)? ;
-field: ( pk=ST | unique=EM | indexed=PL )? name=identifier (type ( optional=QM )? ( AS alias=LABEL )? default? | default | MN+ RA reference=qualified ( optional=QM )? CASCADE? direction? ) ;
+field: ( pk=ST | unique=EM | indexed=PL )? name=identifier (type ( optional=QM )? ( AS alias=LABEL )? default? | default | reference CASCADE? direction? ) ;
 identifier: LABEL | BOOLEAN | BIGINT | INT | SMALLINT | BIGSERIAL | SERIAL | LONG | FLOAT | DOUBLE
           | MONEY | NUMERIC | TIME | TIMETZ | DATE | TIMESTAMP | TIMESTAMPTZ | INTERVAL
           | CHAR | VARCHAR | TEXT | BLOB | ENUM | UUID | JSON | VARBIT ;
