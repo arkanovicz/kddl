@@ -105,18 +105,26 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
         val links: Set<ASTForeignKey>,                // FKs involved (for suppression)
         val tables: Set<ASTTable>                     // JoinTables involved (for suppression)
     ) {
+        /**
+         * Chains are built from the referenced table towards the referencing one; they are written
+         * the other way round, so that the referenced (pk) table always sits on the right of a
+         * connector, where the '?' marking an optional reference belongs - as in a field's `id -> foo?`.
+         */
         fun display(indent: String, builder: StringBuilder) {
+            val last = elements.size - 1
             builder.append(indent)
             for (i in elements.indices) {
-                val (table, optional) = elements[i]
+                val table = elements[last - i].first
+                // the reference is optional when the referencing element, now on the left, says so
+                val optional = i > 0 && elements[last - i + 1].second
                 builder.append(table.name)
                 if (optional) builder.append('?')
                 if (i < connectors.size) {
-                    val (leftMult, rightMult) = connectors[i]
+                    val (leftMult, rightMult) = connectors[last - 1 - i]
                     builder.append(' ')
-                    if (leftMult) builder.append('*')
-                    builder.append("--")
                     if (rightMult) builder.append('*')
+                    builder.append("--")
+                    if (leftMult) builder.append('*') else builder.append('>')
                     builder.append(' ')
                 }
             }

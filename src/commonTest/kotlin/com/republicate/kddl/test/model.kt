@@ -1197,7 +1197,8 @@ class LinkTest {
         val output = db.display().toString()
 
         // Should contain the chain, not individual links
-        assertTrue(output.contains("author *--* book --* chapter"), "Expected chain in output: $output")
+        // written referencing-first, so the referenced table is always on the right
+        assertTrue(output.contains("chapter *--> book *--* author"), "Expected chain in output: $output")
         // Should NOT contain join table
         assertFalse(output.contains("author_book"), "Join table should be hidden: $output")
         // Should NOT contain implicit FK field in chapter
