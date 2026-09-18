@@ -36,6 +36,8 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
     private val typeMap = mapOf(
         "int" to "integer",
         "long" to "bigint",
+        "short" to "smallint",
+        "byte" to "tinyint",
         "float" to "real",
         "double" to "double precision"
     )

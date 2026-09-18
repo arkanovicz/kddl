@@ -1417,3 +1417,55 @@ class BigSerialTest {
             "expected bigint identity column in:\n$sql")
     }
 }
+
+class SmallIntegerTypesTest {
+
+    private val ddl = """
+        database test {
+          schema s {
+            table sizes {
+              *id serial
+              flags tinyint
+              rank byte
+              count smallint
+              offset short?
+              byte varchar(10)
+            }
+          }
+        }
+    """.trimIndent()
+
+    @Test
+    fun testAliasesKeepTheirSpelling() {
+        // like 'clob' for text, an alias survives into kddl output; the dialect resolves it
+        val fields = parse(CharStreams.fromString(ddl)).schemas["s"]!!.tables["sizes"]!!.fields
+        assertEquals("tinyint", (fields["flags"]!!.type as FieldType.Primitive).name)
+        assertEquals("byte", (fields["rank"]!!.type as FieldType.Primitive).name)
+        assertEquals("short", (fields["offset"]!!.type as FieldType.Primitive).name)
+        assertFalse(fields["offset"]!!.nonNull)
+    }
+
+    @Test
+    fun testTypeNamesStayUsableAsIdentifiers() {
+        val fields = parse(CharStreams.fromString(ddl)).schemas["s"]!!.tables["sizes"]!!.fields
+        assertTrue(fields.containsKey("byte"), "a column may still be named after a type")
+    }
+
+    @Test
+    fun testPostgresqlWidensToSmallint() {
+        // PostgreSQL has no 1-byte integer
+        val sql = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false)
+            .format(parse(CharStreams.fromString(ddl)))
+        assertTrue(sql.contains("flags smallint"), "expected widened tinyint in:\n$sql")
+        assertTrue(sql.contains("rank smallint"), "expected widened byte in:\n$sql")
+        assertTrue(sql.contains("offset smallint"), "expected short as smallint in:\n$sql")
+    }
+
+    @Test
+    fun testHyperSqlKeepsTinyint() {
+        val sql = com.republicate.kddl.hypersql.HyperSQLFormatter(false, false, false)
+            .format(parse(CharStreams.fromString(ddl)))
+        assertTrue(sql.contains("flags tinyint"), "expected native tinyint in:\n$sql")
+        assertTrue(sql.contains("count smallint"), "expected smallint in:\n$sql")
+    }
+}

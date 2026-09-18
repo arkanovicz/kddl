@@ -436,7 +436,7 @@ class ASTField(
             type is FieldType.Primitive && type.base.lowercase() in temporalTypes
         private val functionCall = Regex("""^\w+\s*\(.*\)$""")
         fun isFunctionCall(default: Any?) = default is String && functionCall.matches(default)
-        private val integerTypes = setOf("int", "integer", "bigint", "biginteger", "smallint", "smallinteger", "long", "serial", "bigserial")
+        private val integerTypes = setOf("int", "integer", "bigint", "biginteger", "smallint", "smallinteger", "short", "tinyint", "byte", "long", "serial", "bigserial")
         private val realTypes = setOf("float", "double", "real", "numeric", "decimal", "money")
         private val numberLiteral = Regex("""^[-+]?\d+(\.\d+)?$""")
         /**

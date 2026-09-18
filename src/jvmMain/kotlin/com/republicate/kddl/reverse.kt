@@ -298,7 +298,7 @@ class ReverseEngineer(val url: String) {
         Types.DATE to "date",
         Types.DOUBLE to "double",
         Types.FLOAT to "float",
-        Types.TINYINT to "smallint", // no narrower kddl type
+        Types.TINYINT to "tinyint",
         Types.SMALLINT to "smallint",
         Types.INTEGER to "integer",
         Types.BIGINT to "long",

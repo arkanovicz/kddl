@@ -190,6 +190,9 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
     private val typeMap = mapOf(
         "int" to "integer",
         "long" to "bigint",
+        "short" to "smallint",
+        "tinyint" to "smallint", // no 1-byte integer in PostgreSQL
+        "byte" to "smallint",
         "float" to "real",
         "double" to "double precision",
         "blob" to "bytea",

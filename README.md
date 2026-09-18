@@ -62,7 +62,8 @@ Here's the `example.kddl` file, which should be enough to understand the syntax 
 // Definition for database geo
 
 // Supported data types:
-//   boolean, integer, bigint, serial, bigserial, long, float, double, numeric(*n*,*p*), money,
+//   boolean, tinyint (byte), smallint (short), integer, bigint, serial, bigserial, long,
+//   float, double, numeric(*n*,*p*), money,
 //   time, timetz, date, timestamp, timestamptz, interval, char, char(*n*), varchar(*n*), text,
 //   enum(value1, value2, ...) or enum('value1', 'value2', ...), uuid, json, blob, clob, varbit
 
