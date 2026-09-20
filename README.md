@@ -91,12 +91,12 @@ database geo {
 
     table link {
       distance integer
-      src_id --> zone    // mandatory foreign key field
-      dst_id --> zone
-      hub_id --> zone? (down)   // nullable foreign key field
+      src_id -- zone     // mandatory foreign key field, navigable both ways
+      dst_id -- zone
+      hub_id --> zone? (down)   // nullable, and only navigable link -> zone
     }
 
-    city *--> department (up) // plantuml arrow direction can be specified
+    city *-- department (up) // plantuml arrow direction can be specified
 
     // UML one-liner chains: declares multiple relations in one statement
     // company --* department --* team --* employee
@@ -122,8 +122,8 @@ database geo {
       address text?
     }
 
-    location *--> contact    // will generate the implicit "contact_id serial" primary key in contact
-    location *--> infra.zone // foreign key referencing a table in another schema
+    location *-- contact    // will generate the implicit "contact_id serial" primary key in contact
+    location *-- infra.zone // foreign key referencing a table in another schema
 
     // Chain syntax with nullable markers:
     // category *--* product --* review?
@@ -161,6 +161,34 @@ To do the reverse, aka generate the kddl model file from a running JDBC database
 ```
 kddl -i jdbc://...<jdbc URL with credentials> -f kddl > output.kddl
 ```
+
+## Links
+
+A link says two things: where the foreign key lands, and which traversals the model means to expose.
+
+`*` marks the many side. A chevron points at the `1` side: it names the only traversal exposed and,
+when no `*` says otherwise, it puts the many side at its tail. No chevron means both ways.
+
+| link         | foreign key | exposed traversals |
+|--------------|-------------|--------------------|
+| `a *-- b`    | on `a`      | `a.b` and `b.as`   |
+| `a --* b`    | on `b`      | `b.a` and `a.bs`   |
+| `a *--> b`   | on `a`      | `a.b`              |
+| `a <--* b`   | on `b`      | `b.a`              |
+| `a --> b`    | on `a`      | `a.b`              |
+| `a <-- b`    | on `b`      | `b.a`              |
+| `a *--* b`   | join table  | both, always       |
+| `a -- b`     | rejected    | nothing says which side holds the key |
+
+A chevron can only ever suppress the *collection* side. The single reference is the field you
+declared and costs one key lookup; the collection is the one you may not want generated. So
+`a <*-- b` and `a --*> b` do not exist, and `*--*` takes no chevron.
+
+The same rules hold for a field link, where the field itself holds the key:
+`author_id -- author` exposes both, `author_id -> author` only `book.author`, and
+`author_id <- author` is rejected.
+
+Traversal intent is read by code generators (skorm). SQL and PlantUML output ignore it.
 
 ## Build tool plugins
 

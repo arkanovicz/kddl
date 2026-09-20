@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.27
+- **Breaking**: a chevron in a link now marks traversal intent, not just the foreign key side. `a *-- b` exposes both navigations, `a *--> b` only `a.b`. Structurally nothing moves — `-->`, `*-->`, `--*`, `*--*` keep the foreign key exactly where they put it — but every existing `-->` and `*-->` now also says "no collection on the other side". Migration: `*--> ` → `*-- `, and `--> ` → `-- ` inside a table, wherever both navigations are wanted
+- A chevron points at the `1` side, so it can only suppress the collection side: `<*--` and `--*>` are not grammar, and `*--*` (always bidirectional) takes no chevron
+- `a -- b` between two tables is rejected: nothing says which side holds the key. It used to parse and silently create no link at all
+- `field -- table` is now the bidirectional field link (it used to be rejected); `field -> table` restricts traversal to the reference. `field <- table` stays rejected: the field is the key, suppressing the reference it declares buys nothing
+- KDDL output writes the intent back: `*--` / `--` for a bidirectional link, `*-->` / `->` for a one-way one. JDBC reverse engineering cannot know intent and emits the bidirectional form
+- Traversal intent is carried by `ASTForeignKey.bidirectional`; SQL and PlantUML output ignore it
+
 ## 0.26
 - Add the `tinyint` type, with `byte` and `short` as aliases of `tinyint` and `smallint` (as `long` is of `bigint`). PostgreSQL has no 1-byte integer and widens `tinyint`/`byte` to `smallint`
 - KDDL output: tables are emitted in dependency order — after their parent and after everything they reference — so reverse-engineered models parse back. A foreign key cycle is the one graph no order satisfies, and stays unsupported

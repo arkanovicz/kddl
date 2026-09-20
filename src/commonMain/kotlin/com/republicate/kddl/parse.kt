@@ -140,9 +140,9 @@ fun buildAst(
                 } else {
                     // link field
                     val conn = astRef!!.connector()
-                    // the field itself holds the key, so the reference must point away from it
-                    if (!conn.leftMult || conn.rightMult)
-                        throw SemanticException("a field reference must point at its target: ${astField.text}")
+                    // the field itself holds the key: nothing may claim the target side is the many one
+                    if (conn.rightMult)
+                        throw SemanticException("a field reference cannot point away from its target: ${astField.text}")
                     val refPk = reference.getOrCreatePrimaryKey()
                     val cascade = astField.CASCADE() != null
                     val direction = astField.direction()?.text ?: ""
@@ -151,7 +151,7 @@ fun buildAst(
                     }
                     ASTField(table, fieldName, fieldType, pk, nonNull, unique)
                         .also {
-                            val fk = ASTForeignKey(table, setOf(it), reference, nonNull, unique, cascade, direction)
+                            val fk = ASTForeignKey(table, setOf(it), reference, nonNull, unique, cascade, direction, conn.bidirectional)
                             table.foreignKeys.add(fk)
                         }
                 }
@@ -206,9 +206,12 @@ private fun buildCondition(astWhere: kddlParser.Where_tailContext, table: ASTTab
     return ASTCondition(field, op)
 }
 
-// which end of a connector carries the many side
+// which end of a connector carries the many side - a chevron points at the 'one' side,
+// so it says where the key lands when no star does
 private val kddlParser.ConnectorContext.leftMult get() = left_mult != null || right_single != null
 private val kddlParser.ConnectorContext.rightMult get() = right_mult != null || left_single != null
+// a chevron names the only traversal the model exposes; without one, both ways are navigable
+private val kddlParser.ConnectorContext.bidirectional get() = left_single == null && right_single == null
 
 fun processLinkChain(astLink: kddlParser.LinkContext, database: ASTDatabase, defSchema: ASTSchema?) {
     val cascade = astLink.CASCADE() != null
@@ -274,8 +277,12 @@ fun processLinkPair(
                 throw SemanticException("link ${fkTable.name} -> ${pkTable.name}: incompatible fk/pk field types")
             fkField
         }.toSet()
-        val fk = ASTForeignKey(from=fkTable, fields=fkFields, towards=pkTable, nonNull=nonNull, false, cascade)
+        val fk = ASTForeignKey(from=fkTable, fields=fkFields, towards=pkTable, nonNull=nonNull,
+            unique=false, cascade=cascade, bidirectional=conn.bidirectional)
         fkTable.foreignKeys.add(fk)
+    } else {
+        // neither a star nor a chevron: nothing says which side holds the key
+        throw SemanticException("a link must tell which side holds the key: ${left.name} -- ${right.name}")
     }
 }
 
@@ -397,7 +404,7 @@ private fun copyTable(srcTable: ASTTable, targetSchema: ASTSchema): ASTTable {
         val newFields = srcFk.fields.map { newTable.fields[it.name]!! }.toSet()
         val newFk = ASTForeignKey(
             newTable, newFields, towardsTable,
-            srcFk.nonNull, srcFk.unique, srcFk.cascade, srcFk.direction
+            srcFk.nonNull, srcFk.unique, srcFk.cascade, srcFk.direction, srcFk.bidirectional
         )
         newTable.foreignKeys.add(newFk)
     }

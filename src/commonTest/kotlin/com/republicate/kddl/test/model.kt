@@ -1198,11 +1198,11 @@ class LinkTest {
 
         // Should contain the chain, not individual links
         // written referencing-first, so the referenced table is always on the right
-        assertTrue(output.contains("chapter *--> book *--* author"), "Expected chain in output: $output")
+        assertTrue(output.contains("chapter *-- book *--* author"), "Expected chain in output: $output")
         // Should NOT contain join table
         assertFalse(output.contains("author_book"), "Join table should be hidden: $output")
         // Should NOT contain implicit FK field in chapter
-        assertFalse(output.contains("book_id ->"), "Implicit FK should be suppressed: $output")
+        assertFalse(output.contains("book_id --"), "Implicit FK should be suppressed: $output")
     }
 }
 
@@ -1467,5 +1467,101 @@ class SmallIntegerTypesTest {
             .format(parse(CharStreams.fromString(ddl)))
         assertTrue(sql.contains("flags tinyint"), "expected native tinyint in:\n$sql")
         assertTrue(sql.contains("count smallint"), "expected smallint in:\n$sql")
+    }
+}
+
+class TraversalIntentTest {
+
+    // a chevron points at the 'one' side and names the only traversal the model exposes
+    private fun model(link: String) = """
+        database test {
+          schema s {
+            table author {
+              *author_id serial
+              name varchar(100)
+            }
+            table book {
+              *book_id serial
+              title varchar(200)
+            }
+            $link
+          }
+        }
+    """.trimIndent()
+
+    private fun fkOf(ddl: String, table: String) =
+        parse(CharStreams.fromString(ddl)).schemas["s"]!!.tables[table]!!.foreignKeys.first()
+
+    @Test
+    fun testStarLinkIsBidirectional() {
+        val fk = fkOf(model("book *-- author"), "book")
+        assertEquals("author", fk.towards.name)
+        assertTrue(fk.bidirectional)
+    }
+
+    @Test
+    fun testChevronRestrictsTraversal() {
+        val fk = fkOf(model("book *--> author"), "book")
+        assertEquals("author", fk.towards.name)
+        assertFalse(fk.bidirectional)
+    }
+
+    @Test
+    fun testBareChevronImpliesManyAtItsTail() {
+        val fk = fkOf(model("book --> author"), "book")
+        assertEquals("author", fk.towards.name)
+        assertFalse(fk.bidirectional)
+    }
+
+    @Test
+    fun testReversedChevron() {
+        val fk = fkOf(model("author <--* book"), "book")
+        assertEquals("author", fk.towards.name)
+        assertFalse(fk.bidirectional)
+    }
+
+    @Test
+    fun testManyToManyIgnoresChevrons() {
+        val db = parse(CharStreams.fromString(model("author <--> book")))
+        val join = db.schemas["s"]!!.tables["author_book"]!!
+        assertEquals(2, join.foreignKeys.size)
+        assertTrue(join.foreignKeys.all { it.bidirectional })
+    }
+
+    @Test
+    fun testUndeterminedLinkIsRejected() {
+        assertFailsWith<com.republicate.kddl.SemanticException> {
+            parse(CharStreams.fromString(model("author -- book")))
+        }
+    }
+
+    @Test
+    fun testFieldLinkIsBidirectionalWithoutChevron() {
+        val ddl = model("").replace("title varchar(200)", "title varchar(200)\n      author_id -- author")
+        val fk = fkOf(ddl, "book")
+        assertEquals("author", fk.towards.name)
+        assertTrue(fk.bidirectional)
+    }
+
+    @Test
+    fun testFieldLinkChevronRestrictsTraversal() {
+        val ddl = model("").replace("title varchar(200)", "title varchar(200)\n      author_id -> author")
+        val fk = fkOf(ddl, "book")
+        assertFalse(fk.bidirectional)
+    }
+
+    @Test
+    fun testFieldLinkCannotPointAway() {
+        val ddl = model("").replace("title varchar(200)", "title varchar(200)\n      author_id <- author")
+        assertFailsWith<com.republicate.kddl.SemanticException> { parse(CharStreams.fromString(ddl)) }
+    }
+
+    @Test
+    fun testTraversalRoundTrip() {
+        val oneWay = parse(CharStreams.fromString(model("book *--> author"))).display().toString()
+        assertTrue(oneWay.contains("book *--> author"), "Expected one-way link in output: $oneWay")
+        val both = parse(CharStreams.fromString(model("book *-- author"))).display().toString()
+        assertTrue(both.contains("book *-- author"), "Expected bidirectional link in output: $both")
+        assertFalse(both.contains("*-->"), "Bidirectional link must not grow a chevron: $both")
     }
 }

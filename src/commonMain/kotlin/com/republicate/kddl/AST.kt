@@ -94,14 +94,18 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
         val fromOptional: Boolean,
         val toOptional: Boolean,
         val isManyToMany: Boolean,  // true for *--*, false for --*
+        val bidirectional: Boolean, // false when a chevron restricts traversal
         val fk: ASTForeignKey?,     // the FK involved (null for many-to-many from side)
         val joinTable: JoinTable?   // non-null for many-to-many
     )
 
+    // what sits between two tables of a chain
+    private data class Connector(val leftMult: Boolean, val rightMult: Boolean, val bidirectional: Boolean)
+
     // Represents a chain of relations
     private data class RelationChain(
         val elements: List<Pair<ASTTable, Boolean>>,  // table and whether it's optional
-        val connectors: List<Pair<Boolean, Boolean>>, // (leftMult, rightMult) for each connector
+        val connectors: List<Connector>,
         val links: Set<ASTForeignKey>,                // FKs involved (for suppression)
         val tables: Set<ASTTable>                     // JoinTables involved (for suppression)
     ) {
@@ -120,11 +124,12 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                 builder.append(table.name)
                 if (optional) builder.append('?')
                 if (i < connectors.size) {
-                    val (leftMult, rightMult) = connectors[last - 1 - i]
+                    val conn = connectors[last - 1 - i]
                     builder.append(' ')
-                    if (rightMult) builder.append('*')
+                    if (conn.rightMult) builder.append('*')
                     builder.append("--")
-                    if (leftMult) builder.append('*') else builder.append('>')
+                    if (conn.leftMult) builder.append('*')
+                    else if (!conn.bidirectional) builder.append('>')
                     builder.append(' ')
                 }
             }
@@ -149,6 +154,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                         fromOptional = !fk1.nonNull,
                         toOptional = !fk2.nonNull,
                         isManyToMany = true,
+                        bidirectional = true,
                         fk = null,
                         joinTable = table
                     ))
@@ -168,6 +174,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                         fromOptional = false,  // PK side is never optional
                         toOptional = !fk.nonNull,
                         isManyToMany = false,
+                        bidirectional = fk.bidirectional,
                         fk = fk,
                         joinTable = null
                     ))
@@ -265,10 +272,8 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                     subChain.elements.mapIndexed { i, (t, opt) ->
                         if (i == 0) t to link.toOptional else t to opt
                     }
-                // Connector: (leftMult, rightMult)
-                // many-to-many: *--* (true, true)
-                // one-to-many: --* (false, true) - the "to" side is the "many" side
-                val newConnectors = listOf(link.isManyToMany to true) + subChain.connectors
+                // many-to-many: *--* ; one-to-many: the "to" side is the "many" side
+                val newConnectors = listOf(Connector(link.isManyToMany, true, link.bidirectional)) + subChain.connectors
                 val newLinks = subChain.links + listOfNotNull(link.fk) +
                     (link.joinTable?.foreignKeys?.toSet() ?: emptySet())
                 val newTables = subChain.tables + listOfNotNull(link.joinTable)
@@ -481,7 +486,7 @@ class ASTField(
         builder.append(name)
         val fk = getForeignKeys().firstOrNull()
         if (fk != null) {
-            builder.append(" -> ")
+            builder.append(if (fk.bidirectional) " -- " else " -> ")
             if (fk.towards.schema.name != table.schema.name) {
                 builder.append("${fk.towards.schema.name}.")
             }
@@ -547,7 +552,9 @@ class ASTForeignKey(
     val nonNull: Boolean = false,
     val unique: Boolean = false,
     val cascade: Boolean = false,
-    val direction: String = ""
+    val direction: String = "",
+    // both navigations are exposed unless the model pointed a chevron at the 'one' side
+    val bidirectional: Boolean = true
 ) {
     fun isFieldLink() : Boolean {
         if (fields.size != 1) return false
