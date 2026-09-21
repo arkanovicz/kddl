@@ -197,7 +197,7 @@ Traversal intent is read by code generators (skorm). SQL and PlantUML output ign
 
 ```kotlin
 plugins {
-    id("com.republicate.kddl") version "0.18"
+    id("com.republicate.kddl") version "0.27"
 }
 
 kddl {
@@ -217,7 +217,7 @@ Then run:
 <plugin>
     <groupId>com.republicate.kddl</groupId>
     <artifactId>kddl-maven-plugin</artifactId>
-    <version>0.18</version>
+    <version>0.27</version>
     <executions>
         <execution>
             <goals>
