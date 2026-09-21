@@ -95,6 +95,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
         val toOptional: Boolean,
         val isManyToMany: Boolean,  // true for *--*, false for --*
         val bidirectional: Boolean, // false when a chevron restricts traversal
+        val direction: String,      // plantuml layout hint, carried by the whole statement
         val fk: ASTForeignKey?,     // the FK involved (null for many-to-many from side)
         val joinTable: JoinTable?   // non-null for many-to-many
     )
@@ -107,7 +108,8 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
         val elements: List<Pair<ASTTable, Boolean>>,  // table and whether it's optional
         val connectors: List<Connector>,
         val links: Set<ASTForeignKey>,                // FKs involved (for suppression)
-        val tables: Set<ASTTable>                     // JoinTables involved (for suppression)
+        val tables: Set<ASTTable>,                    // JoinTables involved (for suppression)
+        val direction: String = ""                    // shared by every link of the chain
     ) {
         /**
          * Chains are built from the referenced table towards the referencing one; they are written
@@ -133,6 +135,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                     builder.append(' ')
                 }
             }
+            if (direction.isNotEmpty()) builder.append(' ').append(direction)
             builder.appendLine()
         }
     }
@@ -155,6 +158,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                         toOptional = !fk2.nonNull,
                         isManyToMany = true,
                         bidirectional = true,
+                        direction = fk1.direction,
                         fk = null,
                         joinTable = table
                     ))
@@ -175,6 +179,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                         toOptional = !fk.nonNull,
                         isManyToMany = false,
                         bidirectional = fk.bidirectional,
+                        direction = fk.direction,
                         fk = fk,
                         joinTable = null
                     ))
@@ -233,7 +238,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
         // Try starting from each table
         for (startTable in tables.values) {
             if (startTable is JoinTable) continue
-            val chain = extendChain(startTable, outgoing, usedLinks, mutableSetOf())
+            val chain = extendChain(startTable, outgoing, usedLinks, mutableSetOf(), null)
             if (chain != null && (bestChain == null || chain.elements.size > bestChain.elements.size)) {
                 bestChain = chain
             }
@@ -246,12 +251,13 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
         start: ASTTable,
         outgoing: Map<ASTTable, List<RelationLink>>,
         usedLinks: Set<RelationLink>,
-        visitedTables: MutableSet<ASTTable>
+        visitedTables: MutableSet<ASTTable>,
+        direction: String?
     ): RelationChain? {
         visitedTables.add(start)
 
         val availableLinks = outgoing[start]?.filter {
-            it !in usedLinks && it.to !in visitedTables
+            it !in usedLinks && it.to !in visitedTables && (direction == null || it.direction == direction)
         } ?: emptyList()
 
         if (availableLinks.isEmpty()) {
@@ -259,14 +265,15 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                 elements = listOf(start to false),
                 connectors = emptyList(),
                 links = emptySet(),
-                tables = emptySet()
+                tables = emptySet(),
+                direction = direction ?: ""
             )
         }
 
         // Try each available link and pick the one that gives longest chain
         var bestResult: RelationChain? = null
         for (link in availableLinks) {
-            val subChain = extendChain(link.to, outgoing, usedLinks, visitedTables.toMutableSet())
+            val subChain = extendChain(link.to, outgoing, usedLinks, visitedTables.toMutableSet(), link.direction)
             if (subChain != null) {
                 val newElements = listOf(start to link.fromOptional) +
                     subChain.elements.mapIndexed { i, (t, opt) ->
@@ -278,7 +285,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                     (link.joinTable?.foreignKeys?.toSet() ?: emptySet())
                 val newTables = subChain.tables + listOfNotNull(link.joinTable)
 
-                val result = RelationChain(newElements, newConnectors, newLinks, newTables)
+                val result = RelationChain(newElements, newConnectors, newLinks, newTables, link.direction)
                 if (bestResult == null || result.elements.size > bestResult.elements.size) {
                     bestResult = result
                 }
@@ -289,7 +296,8 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
             elements = listOf(start to false),
             connectors = emptyList(),
             links = emptySet(),
-            tables = emptySet()
+            tables = emptySet(),
+            direction = direction ?: ""
         )
     }
 }

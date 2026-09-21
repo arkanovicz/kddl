@@ -1557,6 +1557,36 @@ class TraversalIntentTest {
     }
 
     @Test
+    fun testLinkDirectionReachesTheKey() {
+        val fk = fkOf(model("book *-- author (up)"), "book")
+        assertEquals("(up)", fk.direction)
+    }
+
+    @Test
+    fun testLinkDirectionRoundTrips() {
+        val output = parse(CharStreams.fromString(model("book *-- author (up)"))).display().toString()
+        assertTrue(output.contains("book *-- author (up)"), "Expected layout hint in output: $output")
+    }
+
+    @Test
+    fun testChainsDoNotMixDirections() {
+        val ddl = """
+            database test {
+              schema s {
+                table a { *a_id serial }
+                table b { *b_id serial }
+                table c { *c_id serial }
+                a --* b (up)
+                b --* c (down)
+              }
+            }
+        """.trimIndent()
+        val output = parse(CharStreams.fromString(ddl)).display().toString()
+        assertTrue(output.contains("b *-- a (up)"), "Expected first link kept its hint: $output")
+        assertTrue(output.contains("c *-- b (down)"), "Expected second link kept its hint: $output")
+    }
+
+    @Test
     fun testTraversalRoundTrip() {
         val oneWay = parse(CharStreams.fromString(model("book *--> author"))).display().toString()
         assertTrue(oneWay.contains("book *--> author"), "Expected one-way link in output: $oneWay")

@@ -215,10 +215,12 @@ private val kddlParser.ConnectorContext.bidirectional get() = left_single == nul
 
 fun processLinkChain(astLink: kddlParser.LinkContext, database: ASTDatabase, defSchema: ASTSchema?) {
     val cascade = astLink.CASCADE() != null
+    // the layout hint closes the statement, so it belongs to every link of the chain
+    val direction = astLink.direction()?.text ?: ""
     var left = database.resolveTable(defSchema, astLink.ref) ?: throw SemanticException("table not found: ${astLink.ref!!.text}")
     for (astRef in astLink.reference()) {
         val right = database.resolveTable(defSchema, astRef.ref) ?: throw SemanticException("table not found: ${astRef.ref!!.text}")
-        processLinkPair(left, astRef.connector(), right, astRef.optional != null, cascade)
+        processLinkPair(left, astRef.connector(), right, astRef.optional != null, cascade, direction)
         left = right
     }
 }
@@ -228,7 +230,8 @@ fun processLinkPair(
     conn: kddlParser.ConnectorContext,
     right: ASTTable,
     optional: Boolean,
-    cascade: Boolean
+    cascade: Boolean,
+    direction: String = ""
 ) {
     val leftMult = conn.leftMult
     val rightMult = conn.rightMult
@@ -248,7 +251,7 @@ fun processLinkPair(
                 linkTable.fields[it.name] = fkField
                 fkField
             }.toSet()
-            val fk = ASTForeignKey(linkTable, fkFields, it, true, false, true)
+            val fk = ASTForeignKey(linkTable, fkFields, it, true, false, true, direction)
             linkTable.foreignKeys.add(fk)
         }
     } else if (leftMult || rightMult) {
@@ -278,7 +281,7 @@ fun processLinkPair(
             fkField
         }.toSet()
         val fk = ASTForeignKey(from=fkTable, fields=fkFields, towards=pkTable, nonNull=nonNull,
-            unique=false, cascade=cascade, bidirectional=conn.bidirectional)
+            unique=false, cascade=cascade, direction=direction, bidirectional=conn.bidirectional)
         fkTable.foreignKeys.add(fk)
     } else {
         // neither a star nor a chevron: nothing says which side holds the key

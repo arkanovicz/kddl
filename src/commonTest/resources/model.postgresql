@@ -81,9 +81,9 @@ CREATE RULE delete_city AS ON DELETE TO city DO INSTEAD (
 CREATE TABLE IF NOT EXISTS link (
   src_id varchar(10) NOT NULL,
   dst_id varchar(10) NOT NULL,
-  step_id varchar(10) NOT NULL,
   distance integer NOT NULL,
-  PRIMARY KEY (src_id, dst_id, step_id)
+  step_id varchar(10),
+  PRIMARY KEY (src_id, dst_id)
 );
 
 ALTER TABLE base_city ADD CONSTRAINT department_code FOREIGN KEY (department_code) REFERENCES base_department (code);
