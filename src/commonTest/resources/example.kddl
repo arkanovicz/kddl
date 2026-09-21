@@ -1,0 +1,77 @@
+// Include other KDDL files (paths relative to current file)
+// include 'shared/types.kddl'
+// include 'common.kddl'
+
+// Definition for database geo
+
+// Supported data types:
+//   boolean, tinyint (byte), smallint (short), integer, bigint, serial, bigserial, long,
+//   float, double, numeric(*n*,*p*), money,
+//   time, timetz, date, timestamp, timestamptz, interval, char, char(*n*), varchar(*n*), text,
+//   enum(value1, value2, ...) or enum('value1', 'value2', ...), uuid, json, blob, clob, varbit
+
+// a database contains options and schemas
+database geo {
+
+  // a schema contains tables and links
+  schema infra {
+
+    // standalone enum declaration (values can be quoted or unquoted)
+    enum zone_type(urban, rural, industrial)
+
+    // a table contains fields, either given a type or a destination table
+    table zone {
+      type zone_type              // reference to declared enum
+      *code varchar(10)      // '*' stands for 'part of pk', otherwise pk is generated as needed
+      !name varchar(50)       // '!' stands for unique
+      description text?      // '?' stands for nullable field
+      active boolean = false // default value
+    }
+
+    table department : zone // inherit a table from another (for engines which support table inheritance like PostgresQL)
+
+    table city : zone { hasTrain boolean? }  // declarations can be inlined
+
+    table link {
+      distance integer
+      *src_id -- zone    // mandatory foreign key field, navigable both ways
+      *dst_id -- zone
+      hub_id --> zone? (down)   // nullable, and only navigable link -> zone
+    }
+
+    city *-- department (up) // plantuml arrow direction can be specified
+
+    // UML one-liner chains: declares multiple relations in one statement
+    // company --* department --* team --* employee
+    // equivalent to: company --* department ; department --* team ; team --* employee
+  }
+
+  schema client {
+
+    table contact {
+      // no primary key definition; see below
+      // gender, lastname, firstname // field types are optional for plantuml (use a coma to disambiguate)
+      gender char?                   // field types are mandatory for postgresql
+      firstname varchar(200)
+      +lastname varchar(200)         // field is indexed
+      !(firstname, lastname)         // composite unique constraint; '+(a, b)' declares a composite index
+      // constraint groups accept a partial-index condition (PostgreSQL only):
+      //   !(a, b) where c is null    — also 'where c is not null', 'where flag', 'where not flag'
+    }
+
+    table location {
+      name varchar(50) = 'untitled'    // string literals use single quotes
+      nature enum('depart', 'arrival') as LocationNature // enum with custom type name
+      address text?
+    }
+
+    location *-- contact    // will generate the implicit "contact_id serial" primary key in contact
+    location *-- infra.zone // foreign key referencing a table in another schema
+
+    // Chain syntax with nullable markers:
+    // category *--* product --* review?
+    // A '?' closes a reference ('--* review') and makes that relation's foreign key nullable.
+    // It cannot appear on the leading table, which no reference points at.
+  }
+
+}

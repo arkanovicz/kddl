@@ -48,6 +48,7 @@ Options:
 ## Example
 
 Here's the `example.kddl` file, which should be enough to understand the syntax by example.
+It is the model the test suite generates from, and this page quotes it verbatim — a test fails if the two drift.
 
 <details>
   <summary>
@@ -91,8 +92,8 @@ database geo {
 
     table link {
       distance integer
-      src_id -- zone     // mandatory foreign key field, navigable both ways
-      dst_id -- zone
+      *src_id -- zone    // mandatory foreign key field, navigable both ways
+      *dst_id -- zone
       hub_id --> zone? (down)   // nullable, and only navigable link -> zone
     }
 

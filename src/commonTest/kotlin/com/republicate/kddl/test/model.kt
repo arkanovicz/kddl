@@ -13,15 +13,15 @@ class KDDLTest {
 
     @Test
     fun testPlantuml() = runTest {
-        val actual = KddlProcessor("model.kddl", Format.PLANTUML, fromResource = true).process()
-        val expected = getTestResource("model.plantuml")
+        val actual = KddlProcessor("example.kddl", Format.PLANTUML, fromResource = true).process()
+        val expected = getTestResource("example.plantuml")
         assertEquals(expected, actual)
     }
 
     @Test
     fun testPostgresql() = runTest {
-        val actual = KddlProcessor("model.kddl", Format.POSTGRESQL, fromResource = true).process()
-        val expected = getTestResource("model.postgresql")
+        val actual = KddlProcessor("example.kddl", Format.POSTGRESQL, fromResource = true).process()
+        val expected = getTestResource("example.postgresql")
         assertEquals(expected, actual)
     }
 

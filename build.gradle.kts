@@ -174,6 +174,9 @@ kotlin {
         }
     }
 
+    // ReadmeTest compares the README example block to the model it quotes
+    tasks.named<Test>("jvmTest") { inputs.file("README.md") }
+
     val nativeTestResourcesPath = "${layout.buildDirectory.get()}/processedResources/native/test"
     val copyNativeTestResources = project.tasks.register<Copy>("copyNativeTestResources") {
         from("src/commonTest/resources")
