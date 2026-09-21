@@ -7,6 +7,7 @@
 - `field -- table` is now the bidirectional field link (it used to be rejected); `field -> table` restricts traversal to the reference. `field <- table` stays rejected: the field is the key, suppressing the reference it declares buys nothing
 - KDDL output writes the intent back: `*--` / `--` for a bidirectional link, `*-->` / `->` for a one-way one. JDBC reverse engineering cannot know intent and emits the bidirectional form
 - Traversal intent is carried by `ASTForeignKey.bidirectional`; SQL and PlantUML output ignore it
+- Fix: a syntax error is no longer just printed. Antlr reported it, recovered, and the run went on with a tree missing the tokens it choked on, so a mistyped model quietly yielded a wrong schema — and a broken test fixture passed for months. Parsing now fails with a `SyntaxException` naming the source, line and column of every error
 - Fix: a table-level link's `(up)`/`(down)`/`(left)`/`(right)` was parsed and thrown away — only field links carried it, so `city *-- department (up)` drew a plain arrow. The hint now reaches the foreign key, renders in PlantUML and round-trips through KDDL output; a chain only gathers links sharing the same hint, instead of silently keeping one of them
 
 ## 0.26

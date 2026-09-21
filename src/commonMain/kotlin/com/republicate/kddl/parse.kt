@@ -6,7 +6,7 @@ import org.antlr.v4.kotlinruntime.*
 import org.antlr.v4.kotlinruntime.tree.Tree
 import org.antlr.v4.kotlinruntime.tree.Trees
 
-fun parse(ddl: CharStream, errorListener: ANTLRErrorListener = ConsoleErrorListener()): ASTDatabase {
+fun parse(ddl: CharStream, errorListener: ANTLRErrorListener? = null): ASTDatabase {
     return parse(ddl, null, mutableSetOf(), errorListener)
 }
 
@@ -14,14 +14,40 @@ fun parse(
     ddl: CharStream,
     basePath: String?,
     loadedFiles: MutableSet<String>,
-    errorListener: ANTLRErrorListener = ConsoleErrorListener()
+    errorListener: ANTLRErrorListener? = null
 ): ASTDatabase {
-    val lexer = kddlLexer(ddl)
+    // antlr reports a syntax error then recovers; a model compiler must not go on with the
+    // tokens it managed to keep - what it builds then is not what was written
+    val fatal = FailingErrorListener(ddl.sourceName)
+    val lexer = kddlLexer(ddl).withListeners(fatal, errorListener)
     val tokenStream = CommonTokenStream(lexer)
-    val parser = kddlParser(tokenStream)
-    parser.addErrorListener(errorListener)
+    val parser = kddlParser(tokenStream).withListeners(fatal, errorListener)
     val root = parser.database()
+    fatal.check()
     return buildAst(root, basePath, loadedFiles, errorListener)
+}
+
+private fun <T : Recognizer<*, *>> T.withListeners(vararg listeners: ANTLRErrorListener?): T {
+    removeErrorListeners() // the default one prints and lets the run continue
+    listeners.filterNotNull().forEach { addErrorListener(it) }
+    return this
+}
+
+/** Gathers syntax errors so that one run names them all, then fails. */
+private class FailingErrorListener(private val source: String) : BaseErrorListener() {
+    private val errors = mutableListOf<String>()
+
+    override fun syntaxError(
+        recognizer: Recognizer<*, *>, offendingSymbol: Any?, line: Int,
+        charPositionInLine: Int, msg: String, e: RecognitionException?
+    ) {
+        val origin = if (source.isEmpty() || source == IntStream.UNKNOWN_SOURCE_NAME) "" else "$source "
+        errors.add("${origin}line $line:$charPositionInLine $msg")
+    }
+
+    fun check() {
+        if (errors.isNotEmpty()) throw SyntaxException(errors.joinToString("\n"))
+    }
 }
 
 // WIP
@@ -32,13 +58,13 @@ private fun String.returnType(): String = when (this) {
 }
 
 fun buildAst(astDatabase: kddlParser.DatabaseContext): ASTDatabase =
-    buildAst(astDatabase, null, mutableSetOf(), ConsoleErrorListener())
+    buildAst(astDatabase, null, mutableSetOf(), null)
 
 fun buildAst(
     astDatabase: kddlParser.DatabaseContext,
     basePath: String?,
     loadedFiles: MutableSet<String>,
-    errorListener: ANTLRErrorListener
+    errorListener: ANTLRErrorListener?
 ): ASTDatabase {
     // database
     val database = ASTDatabase(astDatabase.name!!.text!!)

@@ -2,6 +2,8 @@ package com.republicate.kddl
 
 class SemanticException(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
 
+class SyntaxException(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
+
 interface Formatter {
     companion object {
         const val EOL: String = "\n"
