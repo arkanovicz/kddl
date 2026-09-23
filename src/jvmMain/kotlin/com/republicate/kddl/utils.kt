@@ -36,4 +36,6 @@ actual object Utils {
     actual fun parentPath(path: String): String? {
         return File(path).parentFile?.path
     }
+
+    actual fun warn(message: String) = System.err.println("warning: $message")
 }

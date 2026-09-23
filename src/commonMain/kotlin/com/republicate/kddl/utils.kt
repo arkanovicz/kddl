@@ -7,6 +7,7 @@ expect object Utils {
     fun getFile(path: String): CharStream
     fun normalizePath(path: String): String
     fun parentPath(path: String): String?
+    fun warn(message: String)
 }
 
 // TODO use root locale

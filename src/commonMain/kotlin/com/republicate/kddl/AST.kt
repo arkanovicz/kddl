@@ -329,6 +329,7 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
     fun getOrCreatePrimaryKey() : Set<ASTField> = fields.values.filter { it.primaryKey }.ifEmpty {
         parent?.getOrCreatePrimaryKey() ?: run {
             val pkName = "$name$keySuffix"
+            Utils.warn("table $name has no primary key, generating $pkName; implicit primary keys are deprecated")
             val pk = ASTField(this, pkName, "serial", true, true, true)
             fields[pkName] = pk
             listOf(pk)

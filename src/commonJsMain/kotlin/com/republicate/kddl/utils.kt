@@ -20,4 +20,6 @@ actual object Utils {
     actual fun parentPath(path: String): String? {
         TODO("Not implemented")
     }
+
+    actual fun warn(message: String) = console.warn("warning: $message")
 }

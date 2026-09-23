@@ -9,6 +9,8 @@ import org.antlr.v4.kotlinruntime.CharStreams
 import platform.posix.fclose
 import platform.posix.fgets
 import platform.posix.fopen
+import platform.posix.fprintf
+import platform.posix.stderr
 
 @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 actual object Utils {
@@ -57,6 +59,10 @@ actual object Utils {
         val normalized = normalizePath(path)
         val lastSlash = normalized.lastIndexOf('/')
         return if (lastSlash <= 0) null else normalized.substring(0, lastSlash)
+    }
+
+    actual fun warn(message: String) {
+        fprintf(stderr, "warning: %s\n", message)
     }
 }
 
