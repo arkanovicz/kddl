@@ -191,13 +191,27 @@ The same rules hold for a field link, where the field itself holds the key:
 
 Traversal intent is read by code generators (skorm). SQL and PlantUML output ignore it.
 
+## Inheritance
+
+`table city : zone` makes `city` a `zone`. The root of a hierarchy gets a `kind` column, an enum of
+every table name in the hierarchy defaulting to the root's own name:
+
+```
+kind enum_zone_kind NOT NULL DEFAULT 'zone'   -- enum_zone_kind: 'zone', 'department', 'city'
+```
+
+The column is synthesized at parse time like an implicit primary key, so code generators see an
+ordinary inherited column. It is not written back as kddl, and `kind` may not be declared on a
+table of the hierarchy. PostgreSQL stores each child in a `base_<child>` table and exposes it as
+an updatable view over the join, whose insert rule sets `kind` to the child's name.
+
 ## Build tool plugins
 
 ### Gradle plugin
 
 ```kotlin
 plugins {
-    id("com.republicate.kddl") version "0.27"
+    id("com.republicate.kddl") version "0.28"
 }
 
 kddl {
@@ -217,7 +231,7 @@ Then run:
 <plugin>
     <groupId>com.republicate.kddl</groupId>
     <artifactId>kddl-maven-plugin</artifactId>
-    <version>0.27</version>
+    <version>0.28</version>
     <executions>
         <execution>
             <goals>

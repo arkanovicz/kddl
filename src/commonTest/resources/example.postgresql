@@ -1,0 +1,138 @@
+-- database geo
+
+-- schema infra
+CREATE SCHEMA IF NOT EXISTS infra;
+SET search_path TO infra,public;
+DO $$ BEGIN
+  CREATE TYPE enum_zone_type AS ENUM ('urban','rural','industrial');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+CREATE CAST (varchar AS enum_zone_type) WITH INOUT AS IMPLICIT;
+DO $$ BEGIN
+  CREATE TYPE enum_zone_kind AS ENUM ('zone','department','city');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+CREATE CAST (varchar AS enum_zone_kind) WITH INOUT AS IMPLICIT;
+CREATE TABLE IF NOT EXISTS zone (
+  code varchar(10) NOT NULL,
+  type enum_zone_type NOT NULL,
+  name varchar(50) NOT NULL UNIQUE,
+  description text,
+  active boolean NOT NULL DEFAULT false,
+  kind enum_zone_kind NOT NULL DEFAULT 'zone',
+  PRIMARY KEY (code)
+);
+
+
+CREATE TABLE IF NOT EXISTS base_department (
+  code varchar(10) NOT NULL,
+  PRIMARY KEY (code)
+);
+
+CREATE VIEW department AS
+  SELECT
+    zone.code,type,name,description,active,kind
+  FROM base_department JOIN zone ON zone.code = base_department.code;
+
+CREATE RULE insert_department AS ON INSERT TO department DO INSTEAD (
+  INSERT INTO zone (code,type,name,description,active,kind)
+    VALUES (NEW.code,NEW.type,NEW.name,NEW.description,COALESCE(NEW.active, false),'department');
+  INSERT INTO base_department (code)
+    VALUES (NEW.code);
+);
+
+CREATE RULE update_department AS ON UPDATE TO department DO INSTEAD (
+  UPDATE zone
+    SET type = NEW.type,name = NEW.name,description = NEW.description,active = NEW.active
+    WHERE code = NEW.code
+  RETURNING NEW.*;
+);
+
+CREATE RULE delete_department AS ON DELETE TO department DO INSTEAD (
+  DELETE FROM zone WHERE code = OLD.code;
+);
+
+
+CREATE TABLE IF NOT EXISTS base_city (
+  code varchar(10) NOT NULL,
+  has_train boolean,
+  department_code varchar(10) NOT NULL,
+  PRIMARY KEY (code)
+);
+
+CREATE VIEW city AS
+  SELECT
+    zone.code,type,name,description,active,kind,
+    has_train,department_code
+  FROM base_city JOIN zone ON zone.code = base_city.code;
+
+CREATE RULE insert_city AS ON INSERT TO city DO INSTEAD (
+  INSERT INTO zone (code,type,name,description,active,kind)
+    VALUES (NEW.code,NEW.type,NEW.name,NEW.description,COALESCE(NEW.active, false),'city');
+  INSERT INTO base_city (code,has_train,department_code)
+    VALUES (NEW.code,NEW.has_train,NEW.department_code);
+);
+
+CREATE RULE update_city AS ON UPDATE TO city DO INSTEAD (
+  UPDATE zone
+    SET type = NEW.type,name = NEW.name,description = NEW.description,active = NEW.active
+    WHERE code = NEW.code
+  RETURNING NEW.*;
+  UPDATE base_city
+    SET has_train = NEW.has_train,department_code = NEW.department_code
+    WHERE code = NEW.code;
+);
+
+CREATE RULE delete_city AS ON DELETE TO city DO INSTEAD (
+  DELETE FROM zone WHERE code = OLD.code;
+);
+
+
+CREATE TABLE IF NOT EXISTS link (
+  src_id varchar(10) NOT NULL,
+  dst_id varchar(10) NOT NULL,
+  distance integer NOT NULL,
+  hub_id varchar(10),
+  PRIMARY KEY (src_id, dst_id)
+);
+
+ALTER TABLE base_city ADD CONSTRAINT department_code FOREIGN KEY (department_code) REFERENCES base_department (code);
+ALTER TABLE link ADD CONSTRAINT src FOREIGN KEY (src_id) REFERENCES zone (code);
+ALTER TABLE link ADD CONSTRAINT dst FOREIGN KEY (dst_id) REFERENCES zone (code);
+ALTER TABLE link ADD CONSTRAINT hub FOREIGN KEY (hub_id) REFERENCES zone (code);
+ALTER TABLE base_department ADD CONSTRAINT code FOREIGN KEY (code) REFERENCES zone (code) ON DELETE CASCADE;
+
+ALTER TABLE base_city ADD CONSTRAINT code FOREIGN KEY (code) REFERENCES zone (code) ON DELETE CASCADE;
+
+
+
+-- schema client
+CREATE SCHEMA IF NOT EXISTS client;
+SET search_path TO client,public;
+DO $$ BEGIN
+  CREATE TYPE enum_nature AS ENUM ('depart','arrival');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+CREATE CAST (varchar AS enum_nature) WITH INOUT AS IMPLICIT;
+CREATE TABLE IF NOT EXISTS contact (
+  contact_id serial NOT NULL,
+  gender char,
+  firstname varchar(200) NOT NULL,
+  lastname varchar(200) NOT NULL,
+  UNIQUE (firstname, lastname),
+  PRIMARY KEY (contact_id)
+);
+
+CREATE INDEX IF NOT EXISTS contact_lastname_idx ON contact (lastname);
+
+
+CREATE TABLE IF NOT EXISTS location (
+  name varchar(50) NOT NULL DEFAULT 'untitled',
+  nature enum_nature NOT NULL,
+  address text,
+  contact_id integer NOT NULL,
+  code varchar(10) NOT NULL
+);
+
+ALTER TABLE location ADD CONSTRAINT contact FOREIGN KEY (contact_id) REFERENCES contact (contact_id);
+ALTER TABLE location ADD CONSTRAINT code FOREIGN KEY (code) REFERENCES infra.zone (code);

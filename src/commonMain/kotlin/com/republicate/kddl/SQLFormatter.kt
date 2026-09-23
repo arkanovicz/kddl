@@ -174,12 +174,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
         }
 
         // DB TODO double inheritance is not handled
-        if (asm.children.isNotEmpty()) {
-            if (!supportsInheritance) throw Error("inheritance not supported")
-            if (firstField) firstField = false else ret.append(",")
-            ret.append(EOL)
-            ret.append("  class varchar(30)")
-        }
+        if (asm.children.isNotEmpty() && !supportsInheritance) throw Error("inheritance not supported")
 
         // unique constraint groups (conditional ones become partial unique indexes below)
         for (index in asm.indices.filter { it.unique && it.condition == null }) {

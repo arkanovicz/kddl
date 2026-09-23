@@ -28,7 +28,8 @@ open class ASTDatabase(name : String) : DBObject(name) {
     }
 }
 
-class ASTEnum(val schema: ASTSchema, name: String, val values: List<String>) : DBObject(name) {
+// implicit: synthesized by the parser (a hierarchy's kind enum), so not written back as kddl
+class ASTEnum(val schema: ASTSchema, name: String, val values: List<String>, val implicit: Boolean = false) : DBObject(name) {
     override fun display(indent: String, builder: StringBuilder): StringBuilder {
         builder.append("${indent}enum $name(")
         builder.append(values.joinToString(", ") { "'$it'" })
@@ -66,7 +67,7 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
     }
     override fun display(indent: String, builder: StringBuilder): StringBuilder {
         builder.appendLine("${indent}schema $name {")
-        for (enum in enums.values) {
+        for (enum in enums.values.filter { !it.implicit }) {
             enum.display("$indent  ", builder)
         }
         // Build chains from relations
@@ -315,6 +316,16 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
 
     fun getPrimaryKey() : Set<ASTField> = fields.values.filter { it.primaryKey }.toSet()
 
+    /**
+     * Discriminator column of an inheritance hierarchy: synthesized on the root table once the
+     * whole model is parsed, inherited by every descendant like any column. Null when the table
+     * has no children; a table in the middle of a hierarchy answers with the root's field.
+     */
+    val kind: ASTField? get() = if (children.isEmpty()) null else parent?.kind ?: fields[kindName]
+
+    /** this table and its descendants, each followed by its own descendants */
+    fun descendants(): List<ASTTable> = listOf(this) + children.flatMap { it.descendants() }
+
     fun getOrCreatePrimaryKey() : Set<ASTField> = fields.values.filter { it.primaryKey }.ifEmpty {
         parent?.getOrCreatePrimaryKey() ?: run {
             val pkName = "$name$keySuffix"
@@ -364,10 +375,11 @@ open class ASTTable(val schema : ASTSchema, name : String, val parent : ASTTable
             }
             builder.append(parent.name)
         }
-        // Filter out implicit link fields that are in chains
+        // Filter out the synthesized kind and implicit link fields that are in chains
         val displayFields = fields.values.filter { field ->
             val fks = field.getForeignKeys()
-            if (fks.isEmpty()) true
+            if (field === kind) false
+            else if (fks.isEmpty()) true
             else if (!field.isImplicitLinkField()) true
             else fks.none { it in suppressedLinks }
         }
@@ -392,6 +404,7 @@ class JoinTable(schema: ASTSchema, val sourceTable: ASTTable, val destTable : AS
 }
 
 val keySuffix = "_id"
+val kindName = "kind"
 
 sealed class FieldType {
     class Primitive(val name: String) : FieldType() {

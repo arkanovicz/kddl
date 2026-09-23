@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28
+- **Breaking**: the inheritance discriminator is a real column of the model. The root of a hierarchy gets a `kind` field, an enum `<root>_kind` of every table name in the hierarchy (the root first, then its descendants), `NOT NULL` and defaulting to the root's own name. It used to be a `class varchar(30)` column the SQL formatter added on its own, absent from the AST. Migration for an existing database, in PostgreSQL terms: `CREATE TYPE enum_zone_kind AS ENUM (...)`, `ALTER TABLE zone RENAME class TO kind`, `ALTER TABLE zone ALTER kind TYPE enum_zone_kind USING kind::enum_zone_kind, ALTER kind SET NOT NULL, ALTER kind SET DEFAULT 'zone'`, then recreate the child views and rules
+- The field is synthesized once the whole model is parsed, like an implicit primary key: `ASTTable.kind` names it (null when the table has no children), descendants inherit it and `getMaybeInheritedField("kind")` finds it. A table of a hierarchy declaring its own `kind` is a semantic error, as is a `<root>_kind` enum
+- KDDL output writes back neither the field nor its enum, PlantUML hides it like the implicit primary key. JDBC reverse engineering is unchanged
+- Fix: the insert rule of a child whose parent key is not serial listed the parent's values in declaration order against columns listed key first, so the key received the value of the first non-key column
+
 ## 0.27
 - **Breaking**: a chevron in a link now marks traversal intent, not just the foreign key side. `a *-- b` exposes both navigations, `a *--> b` only `a.b`. Structurally nothing moves — `-->`, `*-->`, `--*`, `*--*` keep the foreign key exactly where they put it — but every existing `-->` and `*-->` now also says "no collection on the other side". Migration: `*--> ` → `*-- `, and `--> ` → `-- ` inside a table, wherever both navigations are wanted
 - A chevron points at the `1` side, so it can only suppress the collection side: `<*--` and `--*>` are not grammar, and `*--*` (always bidirectional) takes no chevron

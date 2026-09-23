@@ -50,7 +50,7 @@ class PlantUMLFormatter : Formatter {
         if (asm !is JoinTable) {
             ret.append("${indent}class ${asm.name}")
             val fields = asm.fields.values.filter {
-                !(it.isDefaultKey() || it.isLinkField() && it.isImplicitLinkField()) // CB TODO - we're scanning twice the foreign keys
+                it !== asm.kind && !(it.isDefaultKey() || it.isLinkField() && it.isImplicitLinkField()) // CB TODO - we're scanning twice the foreign keys
             }
             if (fields.isNotEmpty() || asm.indices.isNotEmpty()) {
                 ret.append(" {")

@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.completion.CompletionCandidates.Path
 import com.republicate.kddl.FieldType
 import com.republicate.kddl.Format
 import com.republicate.kddl.KddlProcessor
+import com.republicate.kddl.SemanticException
 import com.republicate.kddl.Utils
 import com.republicate.kddl.parse
 import org.antlr.v4.kotlinruntime.CharStreams
@@ -1003,6 +1004,44 @@ class TableInheritanceTest {
         // Inherited field via getMaybeInheritedField
         assertNotNull(derived.getMaybeInheritedField("name"))
         assertNotNull(derived.getMaybeInheritedField("id"))
+    }
+
+    @Test
+    fun testKindDiscriminator() {
+        val db = parse(Utils.getResource("example.kddl"))
+        val infra = db.schemas["infra"]!!
+        val zone = infra.tables["zone"]!!
+        val kind = assertNotNull(zone.kind)
+        assertSame(kind, zone.fields["kind"])
+        assertEquals("kind", zone.fields.keys.last())
+        assertEquals("zone", kind.default)
+        assertTrue(kind.nonNull)
+        val type = assertIs<FieldType.NamedEnum>(kind.type)
+        assertEquals("zone_kind", type.enum.name)
+        assertEquals(listOf("zone", "department", "city"), type.enum.values)
+        assertTrue(type.enum.implicit)
+        assertSame(type.enum, infra.enums["zone_kind"])
+        val city = infra.tables["city"]!!
+        assertNull(city.kind)
+        assertSame(kind, city.getMaybeInheritedField("kind"))
+        assertNull(infra.tables["link"]!!.kind)
+        // neither the field nor its enum are written back
+        val kddl = db.display().toString()
+        assertFalse(kddl.contains("kind"), kddl)
+    }
+
+    @Test
+    fun testKindIsReserved() {
+        val ddl = """
+            database test {
+              schema s {
+                table base { *id serial }
+                table derived : base { kind varchar(10) }
+              }
+            }
+        """.trimIndent()
+        val e = assertFailsWith<SemanticException> { parse(CharStreams.fromString(ddl)) }
+        assertTrue(e.message!!.contains("derived"), e.message)
     }
 }
 

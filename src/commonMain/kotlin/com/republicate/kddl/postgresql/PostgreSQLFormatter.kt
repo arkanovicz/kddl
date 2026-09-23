@@ -67,13 +67,14 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
             "$parentName.${transform(it.name)}"
         }
         ret.append(parentPkFields)
-        val parentNonPKFields = parent.fields.values
-            .filter { !it.primaryKey }.joinToString(",") { transform(it.name) }
+        // the parent's kind sits among its columns; a row inserted through this view is of this kind
+        val parentNonPK = parent.fields.values.filter { !it.primaryKey }
+        val parentNonPKFields = parentNonPK.joinToString(",") { transform(it.name) }
+        val parentValues = parentNonPK.joinToString(",") { if (it === parent.kind) "'$baseName'" else newOrDefault(it) }
         if (parentNonPKFields.isNotEmpty()) {
             ret.append(",")
             ret.append(parentNonPKFields)
         }
-        ret.append(",${Q}class$Q")
         val childFields = table.fields.values.joinToString(",") { transform(it.name) }
         if (childFields.isNotEmpty()) {
             ret.append(",${EOL}")
@@ -102,10 +103,9 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
 
                 ret.append("CREATE RULE insert_${baseName} AS ON INSERT TO $viewName DO INSTEAD (${EOL}")
 
-                ret.append("  INSERT INTO $qualifiedParentName ($pkName, $parentNonPKFields,${Q}class$Q)${EOL}    VALUES (")
+                ret.append("  INSERT INTO $qualifiedParentName ($pkName,$parentNonPKFields)${EOL}    VALUES (")
                 ret.append("     COALESCE(NEW.$pkName,NEXTVAL('$seqName')),")
-                var parentValues = parent.fields.values.filter { !it.primaryKey }.map { newOrDefault(it) }.joinToString(",")
-                ret.append("$parentValues,'$baseName')${EOL}")
+                ret.append("$parentValues)${EOL}")
                 ret.append("  RETURNING $qualifiedParentName.*")
                 if (childFields.isNotEmpty()) {
                     table.fields.values.forEach {
@@ -144,9 +144,8 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
             } else {
 
                 ret.append("CREATE RULE insert_${baseName} AS ON INSERT TO $viewName DO INSTEAD (${EOL}")
-                ret.append("  INSERT INTO $qualifiedParentName ($pkName,$parentNonPKFields,${Q}class$Q)${EOL}    VALUES (")
-                val parentValues = parent.fields.values.joinToString(",") { newOrDefault(it) }
-                ret.append("$parentValues,'$viewName')$END")
+                ret.append("  INSERT INTO $qualifiedParentName ($pkName,$parentNonPKFields)${EOL}    VALUES (")
+                ret.append("NEW.$pkName,$parentValues)$END")
                 ret.append("  INSERT INTO $tableName ($pkName")
                 if (childFields.isNotEmpty()) {
                     ret.append(",$childFields")
@@ -164,7 +163,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
             ret.append("CREATE RULE update_${baseName} AS ON UPDATE TO $viewName DO INSTEAD (${EOL}")
             ret.append("  UPDATE $qualifiedParentName${EOL}")
             ret.append("    SET ")
-            val updateParent = parent.fields.values.filter { !it.primaryKey }
+            val updateParent = parentNonPK.filter { it !== parent.kind }
                 .joinToString(",") { "${transform(it.name)} = NEW.${transform(it.name)}" }
             ret.append("$updateParent${EOL}    WHERE $pkName = NEW.$pkName${EOL}")
             ret.append("  RETURNING NEW.*$END")

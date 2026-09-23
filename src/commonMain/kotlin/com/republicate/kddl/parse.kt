@@ -193,6 +193,10 @@ fun buildAst(
     for (astLink in astDatabase.link()) {
         processLinkChain(astLink, database, null)
     }
+    // a child may be declared after its parent, even in another schema: only now is every hierarchy known
+    for (schema in database.schemas.values) {
+        for (table in schema.tables.values) synthesizeKind(table)
+    }
     // constraint groups, after all fields are known
     for ((table, astConstraint) in deferredConstraints) {
         val unique = astConstraint.unique != null
@@ -207,6 +211,25 @@ fun buildAst(
         database.option(astOption.name!!.text!!, astOption.value!!.text!!)
     }
     return database
+}
+
+/**
+ * The root of a hierarchy gets its discriminator column, like an implicit primary key: a `kind`
+ * enum of every table name in the hierarchy, defaulting to the root's own name. Descendants
+ * inherit it, so none of them may declare a `kind` of its own.
+ */
+private fun synthesizeKind(root: ASTTable) {
+    if (root.parent != null || root.children.isEmpty()) return
+    val hierarchy = root.descendants()
+    hierarchy.firstOrNull { it.fields.containsKey(kindName) }?.let {
+        throw SemanticException("field '$kindName' is reserved for the inheritance discriminator: ${it.name}")
+    }
+    val enumName = "${root.name}_$kindName"
+    if (enumName in root.schema.enums)
+        throw SemanticException("enum '$enumName' is reserved for the inheritance discriminator of ${root.name}")
+    val enum = ASTEnum(root.schema, enumName, hierarchy.map { it.name }, implicit = true)
+    root.schema.enums[enumName] = enum
+    root.fields[kindName] = ASTField(root, kindName, FieldType.NamedEnum(enum), default = root.name)
 }
 
 private fun buildCondition(astWhere: kddlParser.Where_tailContext, table: ASTTable): ASTCondition {
@@ -362,6 +385,7 @@ private fun mergeDatabase(target: ASTDatabase, source: ASTDatabase) {
             target.schemas[schemaName] = newSchema
             // Copy enums (recreate with new schema reference)
             for ((enumName, srcEnum) in sourceSchema.enums) {
+                if (srcEnum.implicit) continue
                 val newEnum = ASTEnum(newSchema, enumName, srcEnum.values)
                 newSchema.enums[enumName] = newEnum
             }
@@ -372,6 +396,7 @@ private fun mergeDatabase(target: ASTDatabase, source: ASTDatabase) {
         } else {
             // Merge into existing schema
             for ((enumName, srcEnum) in sourceSchema.enums) {
+                if (srcEnum.implicit) continue
                 if (enumName in targetSchema.enums) {
                     throw SemanticException("duplicate enum in include: $schemaName.$enumName")
                 }
@@ -406,8 +431,9 @@ private fun copyTable(srcTable: ASTTable, targetSchema: ASTSchema): ASTTable {
     val newTable = ASTTable(targetSchema, srcTable.name, parent, srcTable.parentDirection)
     targetSchema.tables[newTable.name] = newTable
 
-    // Copy fields
+    // Copy fields; the kind is synthesized again once the including model is whole
     for ((fieldName, srcField) in srcTable.fields) {
+        if (srcField === srcTable.kind) continue
         val newType: FieldType = when (val t = srcField.type) {
             is FieldType.NamedEnum -> {
                 val rebound = targetSchema.enums[t.enum.name]
