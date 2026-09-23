@@ -294,7 +294,8 @@ Please adapt the installation and run scripts.
 - SQL→KDDL reverse engineering (work parked on `feature/parse-ddl` branch)
 - db versioning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
 - custom types
-- more tests (for instance: inheritance from another schema's table)
+- more tests
+- multi-level inheritance: a child of a child fails on its missing key, though its foreign key towards the base table is one (a subset of its parent's key)
 - align fields (add a space if no field prefix)
 - handle enum names collisions (=> error if values are not the same, factorized otherwise)
 - option to reset target schema or not
