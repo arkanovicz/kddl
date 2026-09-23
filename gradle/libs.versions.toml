@@ -13,6 +13,7 @@ postgres = "42.7.7"
 # of consumers, breaking AGP's Tink-based release tasks (NoSuchMethodError on
 # Keyset.makeExtensionsImmutable). 8.4.0 is the last release on protobuf 3.x.
 mysql = "8.4.0"
+testcontainers = "2.0.5"
 
 [libraries]
 antlr-kotlin-runtime = { module = "com.strumenta:antlr-kotlin-runtime", version.ref = "antlrKotlin" }
@@ -20,6 +21,7 @@ clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 mysql-connector = { module = "com.mysql:mysql-connector-j", version.ref = "mysql" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgres" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 
 [plugins]
 multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

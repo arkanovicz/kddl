@@ -38,7 +38,13 @@ CREATE RULE insert_department AS ON INSERT TO department DO INSTEAD (
   INSERT INTO zone (code,type,name,description,active,kind)
     VALUES (NEW.code,NEW.type,NEW.name,NEW.description,COALESCE(NEW.active, false),'department');
   INSERT INTO base_department (code)
-    VALUES (NEW.code);
+    VALUES (NEW.code)
+  RETURNING base_department.code,
+            (SELECT type FROM zone WHERE zone.code = base_department.code),
+            (SELECT name FROM zone WHERE zone.code = base_department.code),
+            (SELECT description FROM zone WHERE zone.code = base_department.code),
+            (SELECT active FROM zone WHERE zone.code = base_department.code),
+            'department'::enum_zone_kind;
 );
 
 CREATE RULE update_department AS ON UPDATE TO department DO INSTEAD (
@@ -70,7 +76,15 @@ CREATE RULE insert_city AS ON INSERT TO city DO INSTEAD (
   INSERT INTO zone (code,type,name,description,active,kind)
     VALUES (NEW.code,NEW.type,NEW.name,NEW.description,COALESCE(NEW.active, false),'city');
   INSERT INTO base_city (code,has_train,department_code)
-    VALUES (NEW.code,NEW.has_train,NEW.department_code);
+    VALUES (NEW.code,NEW.has_train,NEW.department_code)
+  RETURNING base_city.code,
+            (SELECT type FROM zone WHERE zone.code = base_city.code),
+            (SELECT name FROM zone WHERE zone.code = base_city.code),
+            (SELECT description FROM zone WHERE zone.code = base_city.code),
+            (SELECT active FROM zone WHERE zone.code = base_city.code),
+            'city'::enum_zone_kind,
+            base_city.has_train,
+            base_city.department_code;
 );
 
 CREATE RULE update_city AS ON UPDATE TO city DO INSTEAD (

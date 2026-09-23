@@ -170,6 +170,7 @@ kotlin {
         jvmTest {
             dependencies {
                 implementation(kotlin("test"))
+                implementation(libs.testcontainers.postgresql)
             }
         }
     }

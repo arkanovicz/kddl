@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.29
+- Fix: an insert through an inherited view now returns the row, so JDBC's generated keys work. The insert rule carried `RETURNING <parent>.*` on its first action, but PostgreSQL only honours the RETURNING of a rule's last action: `INSERT INTO <child> … RETURNING <key>` yielded no result and `getGeneratedKeys()` was empty. The last action now returns the view's row in the view's order — key and own columns from `base_<child>`, inherited columns by subselect on the parent, the kind as a literal cast to its enum (a rule's RETURNING admits no implicit cast)
+
 ## 0.28
 - **Breaking**: the inheritance discriminator is a real column of the model. The root of a hierarchy gets a `kind` field, an enum `<root>_kind` of every table name in the hierarchy (the root first, then its descendants), `NOT NULL` and defaulting to the root's own name. It used to be a `class varchar(30)` column the SQL formatter added on its own, absent from the AST. Migration for an existing database, in PostgreSQL terms: `CREATE TYPE enum_zone_kind AS ENUM (...)`, `ALTER TABLE zone RENAME class TO kind`, `ALTER TABLE zone ALTER kind TYPE enum_zone_kind USING kind::enum_zone_kind, ALTER kind SET NOT NULL, ALTER kind SET DEFAULT 'zone'`, then recreate the child views and rules
 - The field is synthesized once the whole model is parsed, like an implicit primary key: `ASTTable.kind` names it (null when the table has no children), descendants inherit it and `getMaybeInheritedField("kind")` finds it. A table of a hierarchy declaring its own `kind` is a semantic error, as is a `<root>_kind` enum

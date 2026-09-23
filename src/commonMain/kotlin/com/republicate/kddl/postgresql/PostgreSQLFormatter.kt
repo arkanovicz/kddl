@@ -28,6 +28,11 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
         }
     }
 
+    // the search path only holds the current schema
+    private fun qualifiedTypeName(field: ASTField, from: ASTSchema) =
+        if (field.table.schema == from) sqlTypeName(field)
+        else "${transform(field.table.schema.name)}.${sqlTypeName(field)}"
+
     private fun newOrDefault(field: ASTField): String {
         val ref = "NEW.${transform(field.name)}"
         val def = defaultExpression(field) ?: return ref
@@ -95,6 +100,18 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
             val pk = parent.getPrimaryKey().elementAt(0)
             val pkName = transform(pk.name)
 
+            // PostgreSQL only honours the RETURNING of a rule's last action, where NEW is forbidden:
+            // the view's row is rebuilt from the child's base row, the parent's columns fetched back.
+            // Types must match exactly, no implicit cast applies: the kind literal is cast explicitly
+            val returning = "  RETURNING " + (
+                listOf("$tableName.$pkName") +
+                parentNonPK.map {
+                    if (it === parent.kind) "'$baseName'::${qualifiedTypeName(it, table.schema)}"
+                    else "(SELECT ${transform(it.name)} FROM $qualifiedParentName WHERE $parentName.$pkName = $tableName.$pkName)"
+                } +
+                table.fields.values.map { "$tableName.${transform(it.name)}" }
+            ).joinToString(",${EOL}            ") + "$END"
+
             val pkT = pk.type
             if (pkT is FieldType.Primitive && pkT.isSerial) {
 
@@ -105,25 +122,7 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
 
                 ret.append("  INSERT INTO $qualifiedParentName ($pkName,$parentNonPKFields)${EOL}    VALUES (")
                 ret.append("     COALESCE(NEW.$pkName,NEXTVAL('$seqName')),")
-                ret.append("$parentValues)${EOL}")
-                ret.append("  RETURNING $qualifiedParentName.*")
-                if (childFields.isNotEmpty()) {
-                    table.fields.values.forEach {
-                        val t = it.type
-                        var nullType = when {
-                            t is FieldType.NamedEnum -> "null::enum_${transform(t.enum.name).removeSurrounding(Q)}"
-                            t is FieldType.InlineEnum -> "null::enum_${transform(it.name).removeSurrounding(Q)}"
-                            t is FieldType.Primitive && t.base == "varchar" -> "null::varchar"
-                            t is FieldType.Primitive && t.name == "float" -> "null::real"
-                            t is FieldType.Primitive && t.name == "double" -> "null::float"
-                            t is FieldType.Primitive && t.name == "int" -> "null::integer"
-                            t is FieldType.Primitive -> "null::${t.name}"
-                            else -> "null::$t"
-                        }
-                        ret.append(",$nullType")
-                    }
-                }
-                ret.append("$END${EOL}")
+                ret.append("$parentValues)$END")
 
                 ret.append("  SELECT SETVAL('$seqName', (SELECT MAX($pkName) FROM $qualifiedParentName)) $pkName$END")
 
@@ -137,7 +136,8 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
                 if (childValues.isNotEmpty()) {
                     ret.append(",$childValues")
                 }
-                ret.append(")$END")
+                ret.append(")${EOL}")
+                ret.append(returning)
 
                 ret.append(")$END${EOL}")
 
@@ -156,7 +156,8 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
                 if (childValues.isNotEmpty()) {
                     ret.append(",$childValues")
                 }
-                ret.append(")$END");
+                ret.append(")${EOL}")
+                ret.append(returning)
                 ret.append(")$END${EOL}")
             }
 
