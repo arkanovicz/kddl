@@ -124,14 +124,15 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
                 ret.append("     COALESCE(NEW.$pkName,NEXTVAL('$seqName')),")
                 ret.append("$parentValues)$END")
 
-                ret.append("  SELECT SETVAL('$seqName', (SELECT MAX($pkName) FROM $qualifiedParentName)) $pkName$END")
+                // SETVAL would also reset CURRVAL: only an explicit key past the sequence moves it
+                ret.append("  SELECT SETVAL('$seqName', NEW.$pkName) $pkName WHERE NEW.$pkName > (SELECT last_value FROM $seqName)$END")
 
                 ret.append("  INSERT INTO $tableName ($pkName")
                 if (childFields.isNotEmpty()) {
                     ret.append(",$childFields")
                 }
                 ret.append(")${EOL}    VALUES (")
-                ret.append("CURRVAL('$seqName')")
+                ret.append("COALESCE(NEW.$pkName,CURRVAL('$seqName'))")
                 var childValues = table.fields.values.joinToString(",") { newOrDefault(it) }
                 if (childValues.isNotEmpty()) {
                     ret.append(",$childValues")

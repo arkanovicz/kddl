@@ -82,6 +82,27 @@ class InheritedInsertTest {
     }
 
     @Test
+    fun testExplicitKeys() {
+        connect(serialModel.replace("serial_key", "explicit_key")).use { db ->
+            db.createStatement().use { st ->
+                fun insert(values: String) = st.executeQuery("INSERT INTO vip (person_id, name, since) VALUES ($values, '2026-01-01') RETURNING person_id").use { rs ->
+                    assertTrue(rs.next(), "no row returned")
+                    rs.getInt(1)
+                }
+                assertEquals(10, insert("10, 'Ada'"))
+                // the sequence moved past the explicit key
+                assertEquals(11, insert("DEFAULT, 'Bob'"))
+                // below the sequence, the child row still gets the explicit key
+                assertEquals(5, insert("5, 'Cid'"))
+                st.executeQuery("SELECT person_id, name FROM vip ORDER BY person_id").use { rs ->
+                    val rows = generateSequence { if (rs.next()) rs.getInt(1) to rs.getString(2) else null }.toList()
+                    assertEquals(listOf(5 to "Cid", 10 to "Ada", 11 to "Bob"), rows)
+                }
+            }
+        }
+    }
+
+    @Test
     fun testCrossSchemaChild() {
         val model = """
             database d {
