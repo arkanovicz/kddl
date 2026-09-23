@@ -1008,7 +1008,22 @@ class TableInheritanceTest {
 
     @Test
     fun testKindDiscriminator() {
-        val db = parse(Utils.getResource("example.kddl"))
+        // the README example's hierarchy; the JS target cannot load resources
+        val ddl = """
+            database geo {
+              schema infra {
+                table zone {
+                  *code varchar(10)
+                  name varchar(50)
+                }
+                table department : zone
+                table city : zone { hasTrain boolean? }
+                table link { distance integer }
+                city *-- department
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
         val infra = db.schemas["infra"]!!
         val zone = infra.tables["zone"]!!
         val kind = assertNotNull(zone.kind)
