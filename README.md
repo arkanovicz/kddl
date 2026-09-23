@@ -211,7 +211,7 @@ an updatable view over the join, whose insert rule sets `kind` to the child's na
 
 ```kotlin
 plugins {
-    id("com.republicate.kddl") version "0.28"
+    id("com.republicate.kddl") version "0.29"
 }
 
 kddl {
@@ -231,7 +231,7 @@ Then run:
 <plugin>
     <groupId>com.republicate.kddl</groupId>
     <artifactId>kddl-maven-plugin</artifactId>
-    <version>0.28</version>
+    <version>0.29</version>
     <executions>
         <execution>
             <goals>
