@@ -39,17 +39,21 @@ class ReverseTest {
     @Test
     fun testTypes() {
         val types = reverseTable("""
+            CREATE TYPE mood AS ENUM ('sad', 'ok');
             CREATE TABLE types (
               types_id serial PRIMARY KEY,
               code char(3),
               ratio real,
               big double precision,
-              body text
+              body text,
+              feeling mood
             )
         """.trimIndent(), "types")
         assertEquals(FieldType.Primitive("char(3)"), types["code"])
         assertEquals(FieldType.Primitive("float"), types["ratio"])
         assertEquals(FieldType.Primitive("double"), types["big"])
         assertEquals(FieldType.Primitive("text"), types["body"])
+        // the enum type is named by JDBC, whatever the field is called
+        assertEquals(FieldType.InlineEnum(listOf("sad", "ok")), types["feeling"])
     }
 }

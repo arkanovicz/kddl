@@ -1,6 +1,9 @@
 package com.republicate.kddl.postgresql
 
+import com.republicate.kddl.ASTTable
+import com.republicate.kddl.FieldType
 import com.republicate.kddl.ReverseFilter
+import com.republicate.kddl.ReversedColumn
 import java.sql.DatabaseMetaData
 
 class PostgreSQLReverseFilter(val metadata: DatabaseMetaData): ReverseFilter {
@@ -23,15 +26,18 @@ class PostgreSQLReverseFilter(val metadata: DatabaseMetaData): ReverseFilter {
         map
     }
 
-    override fun filterType(name: String, type: String, default: String?): Pair<String, String?> {
+    override fun filterColumn(table: ASTTable, name: String, typeName: String, primaryKey: Boolean, column: ReversedColumn): ReversedColumn {
+        val type = column.type as? FieldType.Primitive ?: return column
+        val default = column.default
         return when {
             default?.startsWith("nextval(") ?: false ->
-                Pair(if (type == "long" || type == "bigint") "bigserial" else "serial", null)
-            default?.contains("::") ?: false -> Pair(type, default!!.substring(0, default!!.indexOf("::")))
-            // CB TODO - for now we use the convention that in the database,
-            // all enum fields with the same name share the same type with name enum_${name}
-            type == "varchar(2147483647)" -> Pair(enumMap["enum_$name"]?.joinToString("','", "enum ('", "')") ?: "text", default)
-            else -> Pair(type, default)
+                column.copy(type = FieldType.Primitive(if (type.name == "long" || type.name == "bigint") "bigserial" else "serial"), default = null)
+            default?.contains("::") ?: false -> column.copy(default = default!!.substring(0, default.indexOf("::")))
+            // an enum column comes as an unbounded varchar, named after its type; text comes the same way, unnamed
+            // CB TODO - the convention that enum fields with the same name share the type enum_${name} is kept as a fallback
+            type.name == "varchar(2147483647)" ->
+                column.copy(type = (enumMap[typeName] ?: enumMap["enum_$name"])?.let { FieldType.InlineEnum(it) } ?: FieldType.Primitive("text"))
+            else -> column
         }
     }
 }

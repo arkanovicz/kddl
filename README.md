@@ -163,6 +163,11 @@ To do the reverse, aka generate the kddl model file from a running JDBC database
 kddl -i jdbc://...<jdbc URL with credentials> -f kddl > output.kddl
 ```
 
+The model is written as the engine describes it, with a few vendor readings: a PostgreSQL enum
+or `nextval()` default becomes an `enum(...)` or a `serial`; a MySQL/MariaDB `enum` gets its
+labels back, a `'0000-00-00'` default becomes a nullable column without one, and the `0` or `''`
+an old dump puts on key columns is dropped.
+
 ## Links
 
 A link says two things: where the foreign key lands, and which traversals the model means to expose.

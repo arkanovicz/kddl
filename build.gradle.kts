@@ -171,6 +171,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.testcontainers.postgresql)
+                implementation(libs.testcontainers.mysql)
             }
         }
     }

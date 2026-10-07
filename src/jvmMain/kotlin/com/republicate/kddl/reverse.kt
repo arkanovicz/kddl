@@ -150,7 +150,7 @@ class ReverseEngineer(val url: String) {
                 } ?: throw SQLException("${table.schema.name}.${table.name}: unhandled sql type $sqlTypeName (JDBC type $sqlType) for column $fieldName")
             val colSize = it.getInt("COLUMN_SIZE")
             val colPrec = it.getInt("DECIMAL_DIGITS")
-            var columnDef = it.getString("COLUMN_DEF")
+            val columnDef = it.getString("COLUMN_DEF")
             when (dataType) {
                 "varchar", "char" -> if (colSize != 0) dataType += "($colSize)"
                 "numeric" -> {
@@ -159,15 +159,11 @@ class ReverseEngineer(val url: String) {
                     // else warning TODO
                 }
             }
-            with(vendorFilter.filterType(fieldName, dataType, columnDef)) {
-                dataType = first
-                columnDef = second
-            }
-            val nonNull = it.getString("IS_NULLABLE") == "NO"
+            val primaryKey = keys.contains(fieldName)
+            val (fieldType, default, nonNull) = vendorFilter.filterColumn(table, fieldName, sqlTypeName, primaryKey,
+                ReversedColumn(FieldType.Primitive(dataType), columnDef, it.getString("IS_NULLABLE") == "NO"))
             val generated = ("YES" == it.getString("IS_AUTOINCREMENT") || "YES" == it.getString("IS_GENERATEDCOLUMN"))
-            val fieldType = FieldType.Primitive(dataType)
-            val default = ASTField.coerceDefault(columnDef, fieldType)
-            val field = ASTField(table, fieldName, fieldType, keys.contains(fieldName), nonNull, uniqueCols.contains(fieldName), false /*TODO non-unique indexes*/, default)
+            val field = ASTField(table, fieldName, fieldType, primaryKey, nonNull, uniqueCols.contains(fieldName), false /*TODO non-unique indexes*/, ASTField.coerceDefault(default, fieldType))
             table.fields[fieldName] = field
         }
 
