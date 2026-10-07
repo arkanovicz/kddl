@@ -2,6 +2,7 @@
 
 ## 0.30
 - Fix: JDBC reverse engineering kept the width of `varchar` columns but dropped it for `char`
+- Fix: JDBC reverse engineering swapped the floating point types: `REAL` (single precision, what MySQL and PostgreSQL report for `float`/`real`) came out as `double`, and `FLOAT` (double precision) as `float`
 
 ## 0.29
 - Fix: an insert through an inherited view now returns the row, so JDBC's generated keys work. The insert rule carried `RETURNING <parent>.*` on its first action, but PostgreSQL only honours the RETURNING of a rule's last action: `INSERT INTO <child> … RETURNING <key>` yielded no result and `getGeneratedKeys()` was empty. The last action now returns the view's row in the view's order — key and own columns from `base_<child>`, inherited columns by subselect on the parent, the kind as a literal cast to its enum (a rule's RETURNING admits no implicit cast)
