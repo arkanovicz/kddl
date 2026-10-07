@@ -138,7 +138,8 @@ fun buildAst(
                             }
                             type = FieldType.InlineEnum(values)
                         } else {
-                            type = FieldType.Primitive(astType.text)
+                            // clob is a synonym the lexer accepts: the model carries the canonical name
+                            type = FieldType.Primitive(if (astType.TEXT() != null) "text" else astType.text)
                         }
                     }
                     if (type == null) {

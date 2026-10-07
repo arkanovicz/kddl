@@ -311,7 +311,7 @@ class ReverseEngineer(val url: String) {
         Types.BLOB to "blob",
         Types.BOOLEAN to "boolean",
         Types.CHAR to "char",
-        Types.CLOB to "clob",
+        Types.CLOB to "text",
         Types.DATE to "date",
         Types.DOUBLE to "double",
         Types.FLOAT to "double", // JDBC FLOAT is double precision, REAL single
@@ -327,7 +327,7 @@ class ReverseEngineer(val url: String) {
         Types.TIMESTAMP to "timestamp",
         Types.TIMESTAMP_WITH_TIMEZONE to "timestamptz",
         Types.VARCHAR to "varchar",
-        Types.LONGVARCHAR to "clob",
+        Types.LONGVARCHAR to "text",
         Types.BINARY to "blob",
         Types.VARBINARY to "blob",
         Types.LONGVARBINARY to "blob"

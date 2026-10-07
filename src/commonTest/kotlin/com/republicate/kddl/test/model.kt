@@ -1648,4 +1648,22 @@ class TraversalIntentTest {
         assertTrue(both.contains("book *-- author"), "Expected bidirectional link in output: $both")
         assertFalse(both.contains("*-->"), "Bidirectional link must not grow a chevron: $both")
     }
+
+    @Test
+    fun testClobIsText() {
+        val ddl = """
+            database d {
+              schema s {
+                table t {
+                  *t_id serial
+                  body clob
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        assertEquals(FieldType.Primitive("text"), db.schemas["s"]!!.tables["t"]!!.fields["body"]!!.type)
+        val sql = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false).format(db)
+        assertTrue(sql.contains("body text"), "Expected clob written as text, got:\n$sql")
+    }
 }
