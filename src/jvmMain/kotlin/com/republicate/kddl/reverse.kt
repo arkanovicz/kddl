@@ -152,7 +152,7 @@ class ReverseEngineer(val url: String) {
             val colPrec = it.getInt("DECIMAL_DIGITS")
             var columnDef = it.getString("COLUMN_DEF")
             when (dataType) {
-                "varchar" -> if (colSize != 0) dataType += "($colSize)" // else dataType += "()"
+                "varchar", "char" -> if (colSize != 0) dataType += "($colSize)"
                 "numeric" -> {
                     if (colSize != 0 && colPrec != 0) dataType += "($colSize,$colPrec)"
                     else if (colSize != 0) dataType += "($colSize)"
