@@ -1227,7 +1227,7 @@ class LinkTest {
 
     @Test
     fun testKddlChainOutput() {
-        // Test that KDDL output generates chains from relations
+        // KDDL output writes a many-to-many as a link and a one-to-many in its field
         val ddl = """
             database test {
               schema s {
@@ -1250,13 +1250,13 @@ class LinkTest {
         val db = parse(CharStreams.fromString(ddl))
         val output = db.display().toString()
 
-        // Should contain the chain, not individual links
-        // written referencing-first, so the referenced table is always on the right
-        assertTrue(output.contains("chapter *-- book *--* author"), "Expected chain in output: $output")
+        // The many-to-many is a link, written referencing-first so the referenced table sits on the right
+        assertTrue(output.contains("book *--* author"), "Expected link in output: $output")
         // Should NOT contain join table
         assertFalse(output.contains("author_book"), "Join table should be hidden: $output")
-        // Should NOT contain implicit FK field in chapter
-        assertFalse(output.contains("book_id --"), "Implicit FK should be suppressed: $output")
+        // The one-to-many is written in its field, never as a link
+        assertTrue(output.contains("book_id -- book"), "Expected field link in output: $output")
+        assertFalse(output.contains("chapter *--"), "A one-to-many must not be written as a link: $output")
     }
 }
 
@@ -1619,11 +1619,11 @@ class TraversalIntentTest {
     @Test
     fun testLinkDirectionRoundTrips() {
         val output = parse(CharStreams.fromString(model("book *-- author (up)"))).display().toString()
-        assertTrue(output.contains("book *-- author (up)"), "Expected layout hint in output: $output")
+        assertTrue(output.contains("author_id -- author (up)"), "Expected layout hint in output: $output")
     }
 
     @Test
-    fun testChainsDoNotMixDirections() {
+    fun testLinkDirectionsStayOnTheirField() {
         val ddl = """
             database test {
               schema s {
@@ -1636,17 +1636,17 @@ class TraversalIntentTest {
             }
         """.trimIndent()
         val output = parse(CharStreams.fromString(ddl)).display().toString()
-        assertTrue(output.contains("b *-- a (up)"), "Expected first link kept its hint: $output")
-        assertTrue(output.contains("c *-- b (down)"), "Expected second link kept its hint: $output")
+        assertTrue(output.contains("a_id -- a (up)"), "Expected first link kept its hint: $output")
+        assertTrue(output.contains("b_id -- b (down)"), "Expected second link kept its hint: $output")
     }
 
     @Test
     fun testTraversalRoundTrip() {
         val oneWay = parse(CharStreams.fromString(model("book *--> author"))).display().toString()
-        assertTrue(oneWay.contains("book *--> author"), "Expected one-way link in output: $oneWay")
+        assertTrue(oneWay.contains("author_id -> author"), "Expected one-way link in output: $oneWay")
         val both = parse(CharStreams.fromString(model("book *-- author"))).display().toString()
-        assertTrue(both.contains("book *-- author"), "Expected bidirectional link in output: $both")
-        assertFalse(both.contains("*-->"), "Bidirectional link must not grow a chevron: $both")
+        assertTrue(both.contains("author_id -- author"), "Expected bidirectional link in output: $both")
+        assertFalse(both.contains("->"), "Bidirectional link must not grow a chevron: $both")
     }
 
     @Test

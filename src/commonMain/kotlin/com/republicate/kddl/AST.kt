@@ -142,7 +142,8 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
     }
 
     private fun buildRelationChains(): List<RelationChain> {
-        // Build adjacency list of relations
+        // Only a join table is written as a link: a one-to-many is written in its field, which keeps
+        // its place among the columns and carries cascade, nullability and layout as a chain cannot
         val links = mutableListOf<RelationLink>()
 
         // Collect many-to-many from JoinTables
@@ -162,27 +163,6 @@ class ASTSchema(val db : ASTDatabase, name : String) : DBObject(name) {
                         direction = fk1.direction,
                         fk = null,
                         joinTable = table
-                    ))
-                }
-            }
-        }
-
-        // Collect one-to-many from implicit FKs
-        for (table in tables.values) {
-            if (table is JoinTable) continue
-            for (fk in table.foreignKeys) {
-                if (fk.isFieldLink() && fk.towards.schema == this) {
-                    // This is an implicit link: towards --* from
-                    links.add(RelationLink(
-                        from = fk.towards,
-                        to = fk.from,
-                        fromOptional = false,  // PK side is never optional
-                        toOptional = !fk.nonNull,
-                        isManyToMany = false,
-                        bidirectional = fk.bidirectional,
-                        direction = fk.direction,
-                        fk = fk,
-                        joinTable = null
                     ))
                 }
             }

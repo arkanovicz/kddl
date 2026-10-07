@@ -4,6 +4,7 @@
 - Fix: JDBC reverse engineering kept the width of `varchar` columns but dropped it for `char`
 - Fix: JDBC reverse engineering swapped the floating point types: `REAL` (single precision, what MySQL and PostgreSQL report for `float`/`real`) came out as `double`, and `FLOAT` (double precision) as `float`
 - Fix: a `clob` column, from a hand-written model or reverse engineered, reached the SQL output as `clob`, which PostgreSQL does not know. `clob` is a synonym of `text` in the grammar: the model now carries `text`, and reverse engineering emits it
+- KDDL output writes a one-to-many in its field (`author_id -- author?`), never as a schema-level link: the column keeps its place among the others and carries cascade, nullability and layout, which a chain lost. Only a many-to-many, which has no field, is still written as `a *--* b`. The parser still reads every link form
 
 ## 0.29
 - Fix: an insert through an inherited view now returns the row, so JDBC's generated keys work. The insert rule carried `RETURNING <parent>.*` on its first action, but PostgreSQL only honours the RETURNING of a rule's last action: `INSERT INTO <child> … RETURNING <key>` yielded no result and `getGeneratedKeys()` was empty. The last action now returns the view's row in the view's order — key and own columns from `base_<child>`, inherited columns by subselect on the parent, the kind as a literal cast to its enum (a rule's RETURNING admits no implicit cast)
