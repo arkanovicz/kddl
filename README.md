@@ -296,21 +296,19 @@ Please adapt the installation and run scripts.
 ## TODO
 
 - document library usage
-- SQL→KDDL reverse engineering (work parked on `feature/parse-ddl` branch)
-- db versioning handling (generation of update scripts from previous version, aka sql *patches* from two model versions)
+- db versioning handling (generation of mutation scripts to/from previous version)
 - custom types
-- more tests
-- multi-level inheritance: a child of a child fails on its missing key, though its foreign key towards the base table is one (a subset of its parent's key)
-- align fields (add a space if no field prefix)
+- multi-level inheritance
 - handle enum names collisions (=> error if values are not the same, factorized otherwise)
-- option to reset target schema or not
 - allow alternate prefix characters to be able to define several orthogonal keys
-- backstitched identifiers support
 
-## limitations
+## Limitations
 
 + a field can be implied in one foreign key at most (but it may be a good practice...)
 + multivalued foreign keys fields must be named after target primary key fields (quite the same...)
 + inline anonymous `enum(...)` types are named after the field; two inline enums with the same field name across different tables will clash. Use a named enum (`enum X(...)` then `field X`) to share a type explicitly
 + no table forward reference in the kddl file - it disallows circular references in a model foreign keys chain (there are very specific cases where this is necessary, but if it can be avoided it is most of the time a bad practice)
 
+## Disclaimer
+
+Since version 0.14 and upwards, commits have been co-authored with an AI agent.
