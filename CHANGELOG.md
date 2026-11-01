@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.31
+- Build: Kotlin 2.3.21 (consumers on Kotlin 2.2 or later still read the metadata), antlr-kotlin 1.0.13 (the last release built on Kotlin 2.3), clikt 5.1.0, coroutines 1.11.0, postgresql driver 42.7.14, Maven plugin API 3.9.16; Gradle 8.14.6 as the step before Gradle 9
+- Build: publishing goes through `com.vanniktech.maven.publish` (Central Portal API) instead of the unmaintained nexus-publish plugin; Dokka 2.2.0 and the plugin attach the javadoc and sources jars themselves, so the hand-rolled dokka jars, the `-Prelease` switch and the sign-ordering workarounds are gone. Signatures are only produced by the `publish*ToMavenCentral` tasks. Published modules now carry `org.gradle.jvm.environment`
+- Build: Gradle 9.4.1. The Gradle plugin's `generateSQL` task is cacheable (its model input is content-sensitive); Gradle 9's plugin validation asked for both annotations
+- Fix: the Maven plugin's `plugin.xml` did not declare the expanded coordinates as task inputs, so a cached `processResources` output could keep the previous version number after a bump
+- Build: the Kotlin/Native cache stays off on linuxX64 (the link of the tests sees a clikt symbol twice), now through the binaries DSL since the `kotlin.native.cacheKind` property is gone from Kotlin 2.3.20
+
 ## 0.30
 - Fix: JDBC reverse engineering kept the width of `varchar` columns but dropped it for `char`
 - Fix: JDBC reverse engineering swapped the floating point types: `REAL` (single precision, what MySQL and PostgreSQL report for `float`/`real`) came out as `double`, and `FLOAT` (double precision) as `float`

@@ -1,8 +1,11 @@
-@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class, KotlinNativeCacheApi::class)
 
-import org.jetbrains.dokka.gradle.DokkaTask
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import org.jetbrains.dokka.gradle.tasks.DokkaGenerateTask
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.DisableCacheInKotlinVersion
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeCacheApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
@@ -10,95 +13,64 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 plugins {
     alias(libs.plugins.multiplatform)
     alias(libs.plugins.dokka)
+    alias(libs.plugins.mavenPublish)
     signing
-    `maven-publish`
-    alias(libs.plugins.nexusPublish)
     alias(libs.plugins.versions)
+    alias(libs.plugins.antlrKotlin)
 }
 
 description = "KDDL Database model swiss-army knife"
 
+// only the Central upload needs signatures; publishToMavenLocal feeds scratch consumers
+val releasing = gradle.startParameter.taskNames.any { it.contains("MavenCentral") }
+
 allprojects {
     group = "com.republicate.kddl"
-    version = "0.30"
+    version = "0.31"
 
     repositories {
         mavenCentral()
     }
 
     apply(plugin = "org.jetbrains.dokka")
-    apply(plugin = "maven-publish")
+    apply(plugin = "com.vanniktech.maven.publish")
     apply(plugin = "signing")
 
-    val isRelease = project.hasProperty("release")
-    signing {
-        isRequired = isRelease
-        if (isRelease) {
-            useGpgCmd()
-            sign(publishing.publications)
-        }
-    }
-
-    tasks.withType<Sign>().configureEach {
-        enabled = isRelease
-    }
-
-    tasks {
-        register<Jar>("dokkaJar") {
-            from(dokkaHtml)
-            dependsOn(dokkaHtml)
-            archiveClassifier.set("javadoc")
-        }
-    }
-}
-
-afterEvaluate {
-    publishing {
-        publications.withType<MavenPublication> {
-            pom {
-                name.set(project.name)
-                description.set(project.description)
-                url.set("https://github.com/arkanovicz/kddl")
-                licenses {
-                    license {
-                        name.set("The Apache Software License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("cbrisson")
-                        name.set("Claude Brisson")
-                        email.set("claude.brisson@gmail.com")
-                        organization.set("republicate.com")
-                        organizationUrl.set("https://republicate.com")
-                    }
-                }
-                scm {
-                    connection.set("scm:git@github.com/arkanovicz/kddl.git")
-                    url.set("https://github.com/arkanovicz/kddl")
+    configure<MavenPublishBaseExtension> {
+        publishToMavenCentral(automaticRelease = true)
+        if (releasing) signAllPublications()
+        pom {
+            name.set(project.name)
+            description.set(provider { project.description })
+            url.set("https://github.com/arkanovicz/kddl")
+            licenses {
+                license {
+                    name.set("The Apache Software License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
                 }
             }
-
-            artifact(tasks["dokkaJar"])
+            developers {
+                developer {
+                    id.set("cbrisson")
+                    name.set("Claude Brisson")
+                    email.set("claude.brisson@gmail.com")
+                    organization.set("republicate.com")
+                    organizationUrl.set("https://republicate.com")
+                }
+            }
+            scm {
+                connection.set("scm:git@github.com:arkanovicz/kddl.git")
+                url.set("https://github.com/arkanovicz/kddl")
+            }
         }
     }
-}
 
-
-nexusPublishing {
-    repositories {
-        sonatype {
-            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
-            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
-            useStaging.set(true)
-        }
+    configure<SigningExtension> {
+        useGpgCmd()
     }
-}
-
-buildscript {
-    dependencies {
-        classpath("com.strumenta:antlr-kotlin-gradle-plugin:1.0.5")
+    // plugin-publish signs its publications on its own whenever signing is applied
+    tasks.withType<Sign>().configureEach {
+        enabled = releasing
     }
 }
 
@@ -128,7 +100,11 @@ kotlin {
         nodejs()
         // compilations.all { compileKotlinTask.kotlinOptions.freeCompilerArgs += listOf("-Xir-minimized-member-names=false") }
     }
-    linuxX64()
+    linuxX64 {
+        binaries.all {
+            disableNativeCache(DisableCacheInKotlinVersion.`2_3_21`, "duplicate clikt.core symbol at link time")
+        }
+    }
     linuxArm64()
     mingwX64()
     macosX64()
@@ -141,8 +117,8 @@ kotlin {
     sourceSets {
         all {
             languageSettings.apply {
-                languageVersion = "2.0"
-                apiVersion = "2.0"
+                languageVersion = "2.1"
+                apiVersion = "2.1"
             }
         }
 
@@ -193,9 +169,7 @@ kotlin {
 val generateKotlinGrammarSource =
     tasks.register<com.strumenta.antlrkotlin.gradle.AntlrKotlinTask>("generateKotlinCommonGrammarSource") {
         // dependsOn("cleanGenerateKotlinGrammarSource")
-        antlrClasspath = configurations.detachedConfiguration(
-            project.dependencies.create("com.strumenta:antlr-kotlin-target:1.0.5")
-        )
+        antlrClasspath = configurations.detachedConfiguration(libs.antlr.kotlin.target.get())
         packageName = "com.republicate.kddl.parser"
 
         arguments = listOf(
@@ -208,14 +182,12 @@ val generateKotlinGrammarSource =
         group = "code generation"
     }
 
-val signingTasks = tasks.withType<Sign>()
-
 tasks {
     // Tasks depending on code generation
     withType<KotlinCompilationTask<*>> {
         dependsOn(generateKotlinGrammarSource)
     }
-    named<DokkaTask>("dokkaHtml") {
+    withType<DokkaGenerateTask>().configureEach {
         dependsOn(generateKotlinGrammarSource)
     }
     sourcesJar {
@@ -227,17 +199,6 @@ tasks {
                 dependsOn(generateKotlinGrammarSource)
             }
         }
-    }
-
-    // Tasks depending on signing
-    withType<AbstractPublishToMaven>().configureEach {
-        dependsOn(signingTasks)
-    }
-
-    // Other dependencies...
-    all {
-        if (this.name == "compileTestKotlinNative") this.mustRunAfter("signNativePublication")
-        if (this.name == "linkDebugTestNative") this.mustRunAfter("signNativePublication")
     }
 
     // Set main class in jvm jar
