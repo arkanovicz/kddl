@@ -1,82 +1,58 @@
 # Changelog
 
 ## 0.31
-- Build: Kotlin 2.3.21 (consumers on Kotlin 2.2 or later still read the metadata), antlr-kotlin 1.0.13 (the last release built on Kotlin 2.3), clikt 5.1.0, coroutines 1.11.0, postgresql driver 42.7.14, Maven plugin API 3.9.16; Gradle 8.14.6 as the step before Gradle 9
-- Build: publishing goes through `com.vanniktech.maven.publish` (Central Portal API) instead of the unmaintained nexus-publish plugin; Dokka 2.2.0 and the plugin attach the javadoc and sources jars themselves, so the hand-rolled dokka jars, the `-Prelease` switch and the sign-ordering workarounds are gone. Signatures are only produced by the `publish*ToMavenCentral` tasks. Published modules now carry `org.gradle.jvm.environment`
-- Build: Gradle 9.4.1. The Gradle plugin's `generateSQL` task is cacheable (its model input is content-sensitive); Gradle 9's plugin validation asked for both annotations
-- Fix: the Maven plugin's `plugin.xml` did not declare the expanded coordinates as task inputs, so a cached `processResources` output could keep the previous version number after a bump
-- Build: the Kotlin/Native cache stays off on linuxX64 (the link of the tests sees a clikt symbol twice), now through the binaries DSL since the `kotlin.native.cacheKind` property is gone from Kotlin 2.3.20
+- Build: Gradle 9.4.1, Kotlin 2.3.21, antlr-kotlin 1.0.13, clikt 5.1.0, coroutines 1.11.0, postgresql 42.7.14, publishing through `com.vanniktech.maven.publish` and Dokka 2
 
 ## 0.30
-- Fix: JDBC reverse engineering kept the width of `varchar` columns but dropped it for `char`
-- Fix: JDBC reverse engineering swapped the floating point types: `REAL` (single precision, what MySQL and PostgreSQL report for `float`/`real`) came out as `double`, and `FLOAT` (double precision) as `float`
-- Fix: a `clob` column, from a hand-written model or reverse engineered, reached the SQL output as `clob`, which PostgreSQL does not know. `clob` is a synonym of `text` in the grammar: the model now carries `text`, and reverse engineering emits it
-- KDDL output writes a one-to-many in its field (`author_id -- author?`), never as a schema-level link: the column keeps its place among the others and carries cascade, nullability and layout, which a chain lost. Only a many-to-many, which has no field, is still written as `a *--* b`. The parser still reads every link form
-- MySQL/MariaDB reverse engineering gets its own vendor filter: an `enum` column comes back as `enum(...)` with its labels (JDBC only says `char`), a `0000-00-00` default makes the column nullable with no default, and the `0` or `''` default an old dump puts on key columns is dropped (a function call stays)
-- PostgreSQL reverse engineering reads an enum column's type from JDBC's type name; the `enum_<field>` naming convention remains a fallback. A reversed enum is now a real inline enum in the model, so a direct reverse-to-SQL run creates its type instead of pasting `enum (...)` as one
-- The vendor filter sees the table, the vendor type name, whether the column is a key, and may change its nullability: `ReverseFilter.filterType` became `filterColumn`
+- Fix: JDBC reverse engineering dropped the width of `char` columns and swapped `float` and `double`
+- Fix: `clob` new gives `text` under PostgreSQL
+- KDDL output: a one-to-many is written in its field (`author_id -- author?`), a link line only for many-to-many
+- MySQL/MariaDB reverse engineering: `enum` columns keep their labels, a `0000-00-00` default makes the column nullable, `0`/`''` defaults on key columns are dropped
+- PostgreSQL reverse engineering: enum columns are read from the JDBC type name and become real inline enums
+- `ReverseFilter.filterType` became `filterColumn` (sees the table, the vendor type, the key status, and may change nullability)
 
 ## 0.29
-- Fix: an insert through an inherited view now returns the row, so JDBC's generated keys work. The insert rule carried `RETURNING <parent>.*` on its first action, but PostgreSQL only honours the RETURNING of a rule's last action: `INSERT INTO <child> … RETURNING <key>` yielded no result and `getGeneratedKeys()` was empty. The last action now returns the view's row in the view's order — key and own columns from `base_<child>`, inherited columns by subselect on the parent, the kind as a literal cast to its enum (a rule's RETURNING admits no implicit cast)
-- Fix: an insert through an inherited view with a serial key could give the child row the wrong key. Between the two inserts, `SETVAL(seq, MAX(key))` reset `CURRVAL`, which the child row then took: an explicit key below the maximum, or a higher key committed meanwhile by another session, landed on the wrong row or collided. The child row now takes `COALESCE(NEW.key, CURRVAL(seq))`, and the sequence only moves forward, to an explicit key past its last value
-- Implicit primary keys are deprecated: generating one logs a warning on stderr. They will become an error, a table referenced by a foreign key then having to declare its own
+- Fix: an insert through an inherited view now returns the row (JDBC generated keys work)
+- Fix: an insert through an inherited view with a serial key could give the child row the wrong key
+- Implicit primary keys are deprecated (warning on stderr)
 
 ## 0.28
-- **Breaking**: the inheritance discriminator is a real column of the model. The root of a hierarchy gets a `kind` field, an enum `<root>_kind` of every table name in the hierarchy (the root first, then its descendants), `NOT NULL` and defaulting to the root's own name. It used to be a `class varchar(30)` column the SQL formatter added on its own, absent from the AST. Migration for an existing database, in PostgreSQL terms: `CREATE TYPE enum_zone_kind AS ENUM (...)`, `ALTER TABLE zone RENAME class TO kind`, `ALTER TABLE zone ALTER kind TYPE enum_zone_kind USING kind::enum_zone_kind, ALTER kind SET NOT NULL, ALTER kind SET DEFAULT 'zone'`, then recreate the child views and rules
-- The field is synthesized once the whole model is parsed, like an implicit primary key: `ASTTable.kind` names it (null when the table has no children), descendants inherit it and `getMaybeInheritedField("kind")` finds it. A table of a hierarchy declaring its own `kind` is a semantic error, as is a `<root>_kind` enum
-- KDDL output writes back neither the field nor its enum, PlantUML hides it like the implicit primary key. JDBC reverse engineering is unchanged
-- Fix: the insert rule of a child whose parent key is not serial listed the parent's values in declaration order against columns listed key first, so the key received the value of the first non-key column
+- **breaking change**: inheritance discriminator changed from `class` varchar column to `kind` enum column
+- `kind` is hidden by KDDL and PlantUML output
+- Fix: the insert rule of a child whose parent key is not serial mixed up the parent's columns
 
 ## 0.27
-- **Breaking**: a chevron in a link now marks traversal intent, not just the foreign key side. `a *-- b` exposes both navigations, `a *--> b` only `a.b`. Structurally nothing moves — `-->`, `*-->`, `--*`, `*--*` keep the foreign key exactly where they put it — but every existing `-->` and `*-->` now also says "no collection on the other side". Migration: `*--> ` → `*-- `, and `--> ` → `-- ` inside a table, wherever both navigations are wanted
-- A chevron points at the `1` side, so it can only suppress the collection side: `<*--` and `--*>` are not grammar, and `*--*` (always bidirectional) takes no chevron
-- `a -- b` between two tables is rejected: nothing says which side holds the key. It used to parse and silently create no link at all
-- `field -- table` is now the bidirectional field link (it used to be rejected); `field -> table` restricts traversal to the reference. `field <- table` stays rejected: the field is the key, suppressing the reference it declares buys nothing
-- KDDL output writes the intent back: `*--` / `--` for a bidirectional link, `*-->` / `->` for a one-way one. JDBC reverse engineering cannot know intent and emits the bidirectional form
-- Traversal intent is carried by `ASTForeignKey.bidirectional`; SQL and PlantUML output ignore it
-- Fix: a syntax error is no longer just printed. Antlr reported it, recovered, and the run went on with a tree missing the tokens it choked on, so a mistyped model quietly yielded a wrong schema — and a broken test fixture passed for months. Parsing now fails with a `SyntaxException` naming the source, line and column of every error
-- The example model is one file again: `src/commonTest/resources/example.kddl`, symlinked as `example.kddl` at the repo root, quoted verbatim by the README and generated from by the golden tests. It had drifted into three incompatible copies, one of which did not parse; a test now compares the README block to the model
-- Fix: a table-level link's `(up)`/`(down)`/`(left)`/`(right)` was parsed and thrown away — only field links carried it, so `city *-- department (up)` drew a plain arrow. The hint now reaches the foreign key, renders in PlantUML and round-trips through KDDL output; a chain only gathers links sharing the same hint, instead of silently keeping one of them
+- **breaking change**: an arrow head marks traversal intent: `a *-- b` navigates both ways, `a *--> b` only `a.b` ; migration: `*-->` → `*--` and `-->` → `--` wherever both navigations are wanted
+- `a -- b` between two tables is rejected (no key side) ; `field -- table` is bidirectional, `field -> table` one-way
+- Fix: a syntax error now fails parsing with `SyntaxException` instead of silently yielding a wrong model
+- Fix: a table-level link's layout hint (`(up)`, …) was dropped
 
 ## 0.26
-- Add the `tinyint` type, with `byte` and `short` as aliases of `tinyint` and `smallint` (as `long` is of `bigint`). PostgreSQL has no 1-byte integer and widens `tinyint`/`byte` to `smallint`
-- KDDL output: tables are emitted in dependency order — after their parent and after everything they reference — so reverse-engineered models parse back. A foreign key cycle is the one graph no order satisfies, and stays unsupported
-- KDDL output: relation chains are written referencing-first, putting the referenced (pk) table and its `?` on the right (`chapter *--> book *--* author`)
-- KDDL output: date, time and interval literal defaults are quoted (`= '0000-00-00'`); a function call default stays bare (`= current_timestamp()`). Both were emitted bare, and the result did not parse back
-- A default value takes the type of its field: `0`/`1` on a boolean is a boolean, integer defaults stay exact past 2^53, and a numeric literal on a non-numeric field keeps its literal form. Applied by the parser and by JDBC reverse engineering alike
-- JDBC reverse engineering: map `VARBINARY` and `LONGVARBINARY` to `blob` — a MySQL `BLOB` arrives as JDBC type -4 and aborted the whole run — and `TINYINT`/`SMALLINT` to `tinyint`/`smallint` (they were `byte`/`short`, which no grammar rule accepted: the output failed to parse back with `enum not found: short`)
-- JDBC reverse engineering: the database named in the jdbc url is the one reverse-engineered. MySQL and MariaDB expose databases as catalogs and every catalog was walked, so `.../ffg` yielded the whole server, `information_schema`, `mysql` and `performance_schema` included. A url stopping at the host still yields every user database, the model being named after the server then (an address being no name, an ip falls back to `localhost` for the loopback, `unknown` otherwise)
-- JDBC reverse engineering: unique indexes are looked up in the schema being read rather than in the connection's own catalog
-- JDBC reverse engineering: an unhandled SQL type now names the table and column it was found on
-- CLI: an error is reported as its chain of causes instead of a Java stack trace; `--debug` restores the stack trace
+- Add `tinyint` (alias `byte`) and `short` as alias of `smallint`
+- KDDL output parses back: tables in dependency order, chains referencing-first, literal date/time defaults quoted
+- Default values take the type of their field
+- Fix: JDBC reverse engineering maps `VARBINARY`/`LONGVARBINARY` to `blob` and `TINYINT`/`SMALLINT` to `tinyint`/`smallint`
 
 ## 0.25
-- Add `bigserial` type (auto-incrementing int8 primary key): parses as a primitive, foreign keys referencing a `bigserial` pk demote to `bigint` (not `int`), PostgreSQL emits `bigserial`, HyperSQL emits `bigint generated by default as identity`
-- JDBC reverse engineering maps a `nextval(...)` default on an int8 column back to `bigserial` (int4 stays `serial`)
+- Add `bigserial` type
 
 ## 0.24
-- Fix: HyperSQL enum fields were rendered as a dangling `enum_<name>` column type that was never defined (HSQLDB has no native `ENUM`), so the create script could not be applied. Enums are now defined as CHECKed varchar domains: `CREATE DOMAIN enum_<name> AS VARCHAR(<longest label>) CHECK (VALUE IN (...))`
-- The `enum_<name>` type rendering is now gated on the same `supportsEnums` switch as the type definitions: a dialect without native enum support falls back to `varchar(<longest label>)` instead of emitting an undefined type
+- Fix: HyperSQL enum fields were broken
 - remove dialects aliases (`postgres` dropped ; now `postgresql` or `hypersql`)
 
 ## 0.23
-- Add partial (conditional) constraint groups: `!(a, b) where c is null` — conditions are restricted to `c is null`, `c is not null`, `flag` and `not flag` so identifiers stay transformable per dialect
-- PostgreSQL renders conditional unique groups as `CREATE UNIQUE INDEX <table>_<cols>_uidx ... WHERE ...` (no inline `UNIQUE`); conditional `+(...)` groups as partial `CREATE INDEX`
-- HyperSQL (no partial-index support) fails with a `SemanticException` instead of emitting silently stronger DDL
-- Semantic checks: condition field must exist, be boolean for the bare/`not` forms, be nullable for the `is [not] null` forms
-- JDBC reverse engineering reads `FILTER_CONDITION`: kddl-expressible conditions map back to `where` tails, others skip the index with a warning (previously a partial unique index silently became an unconditional one)
-- Fix: constraint groups can now reference link-created fields (resolution deferred until after links; previously broke KDDL round-trip)
-- **Reserved words**: `where`, `is`, `not` are now keywords and can no longer be used as identifiers
+- Add partial (conditional) constraint groups: `!(a, b) where c is null` — conditions are restricted to `c is null`, `c is not null`, `flag` and `not flag` ; unsupported for HyperSQL
+- Fix: constraint groups can now reference link-created fields
+- **breaking change**: `where`, `is`, `not` are now keywords and can no longer be used as identifiers
 
 ## 0.22
-- Add composite unique/index constraint groups: `!(a, b)` and `+(a, b)` lines inside a table block (repeatable, may overlap; column order is declaration order)
-- **Semantic change**: multiple `+` fields now produce one index each; the previous implicit grouping of all indexed fields into a single composite index is gone (composite is spelled `+(a, b)`)
-- Non-unique indexes are now emitted as `CREATE INDEX` statements (the previous inline `INDEX (...)` was invalid PostgreSQL)
+- **breaking change**: multiple `+` fields now produce one index each
+- Add composite unique/index constraint groups syntax: `!(a, b)` and `+(a, b)`
+- Non-unique indexes are now emitted as `CREATE INDEX` statements
 - KDDL output: render the `+` indexed marker (was dropped) and constraint group lines
-- JDBC reverse engineering: multi-column unique indexes are now mapped to `!(a, b)` groups instead of being dropped (or mis-attributed on odd column counts)
 
 ## 0.21
-- Downgrade `mysql-connector-j` to 8.4.0 (last release on protobuf-java 3.x) to avoid forcing protobuf 4.x onto consumer buildscript classpaths and breaking AGP's Tink-based release tasks (`NoSuchMethodError` on `Keyset.makeExtensionsImmutable`)
+- Downgrade `mysql-connector-j` to 8.4.0, last release on protobuf-java 3.x: protobuf 4.x breaks some AGP release tasks
 
 ## 0.20
 - Fix: inheritance INSERT rules now wrap `NEW.col` in `COALESCE(NEW.col, <default-expr>)` for columns with a `DEFAULT` clause, so view inserts that omit the column actually pick up the default instead of inserting NULL
