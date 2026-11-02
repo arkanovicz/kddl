@@ -332,7 +332,7 @@ class ReverseEngineer(val url: String) {
     private val typesNamesMap = mapOf<String, String>(
         "uuid" to "uuid",
         "json" to "json",
-        "jsonb" to "json",
+        "jsonb" to "jsonb",
         "varbit" to "varbit"
     )
 }

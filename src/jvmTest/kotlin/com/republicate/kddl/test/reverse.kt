@@ -56,4 +56,30 @@ class ReverseTest {
         // the enum type is named by JDBC, whatever the field is called
         assertEquals(FieldType.InlineEnum(listOf("sad", "ok")), types["feeling"])
     }
+
+    @Test
+    fun testStandardAndZonedTypes() {
+        val types = reverseTable("""
+            CREATE TABLE stamps (
+              stamps_id serial PRIMARY KEY,
+              n integer,
+              big bigint,
+              plain timestamp,
+              zoned timestamptz,
+              since timestamptz DEFAULT '2020-01-01 00:00:00+00'::timestamptz,
+              daily timetz,
+              doc jsonb,
+              raw json
+            )
+        """.trimIndent(), "stamps")
+        assertEquals(FieldType.Primitive("integer"), types["n"])
+        assertEquals(FieldType.Primitive("bigint"), types["big"])
+        assertEquals(FieldType.Primitive("timestamp"), types["plain"])
+        assertEquals(FieldType.Primitive("timestamptz"), types["zoned"])
+        // a cast default must not shadow the type fix
+        assertEquals(FieldType.Primitive("timestamptz"), types["since"])
+        assertEquals(FieldType.Primitive("timetz"), types["daily"])
+        assertEquals(FieldType.Primitive("jsonb"), types["doc"])
+        assertEquals(FieldType.Primitive("json"), types["raw"])
+    }
 }

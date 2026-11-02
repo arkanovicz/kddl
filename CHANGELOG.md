@@ -5,6 +5,7 @@
 - Fix: `datetime(3)` (any aliased type with a precision) reached PostgreSQL unmapped
 - Fix: HyperSQL output wrote `timestamptz` / `timetz`, which HSQLDB and H2 reject: now `timestamp[(p)] with time zone` / `time with time zone`
 - `SQLFormatter.mapType` takes the `FieldType.Primitive` and maps its base name, precision kept
+- Fix: PostgreSQL reverse engineering read `timestamptz` / `timetz` columns as `timestamp` / `time`, and `jsonb` as `json`
 
 ## 0.31
 - Build: Gradle 9.4.1, Kotlin 2.3.21, antlr-kotlin 1.0.13, clikt 5.1.0, coroutines 1.11.0, postgresql 42.7.14, publishing through `com.vanniktech.maven.publish` and Dokka 2
