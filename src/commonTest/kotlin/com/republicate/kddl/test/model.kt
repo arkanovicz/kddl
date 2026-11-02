@@ -1723,18 +1723,15 @@ class TypeNormalizationTest {
     }
 
     @Test
-    fun testCastTypeName() {
+    fun testMapType() {
         val pg = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false)
         val hsql = com.republicate.kddl.hypersql.HyperSQLFormatter(false, false, false)
         fun t(name: String) = FieldType.Primitive(name)
-        assertEquals("integer", pg.castTypeName(t("serial")))
-        assertEquals("bigint", pg.castTypeName(t("bigserial")))
-        assertEquals("bigint", pg.castTypeName(t("long")))
-        assertEquals("smallint", pg.castTypeName(t("tinyint")))
-        assertEquals("double precision", pg.castTypeName(t("double")))
-        assertEquals("timestamp(3)", pg.castTypeName(t("datetime(3)")))
-        assertEquals("integer", hsql.castTypeName(t("serial")))
-        assertEquals("timestamp(6) with time zone", hsql.castTypeName(t("timestamptz(6)")))
+        assertEquals("bigint", pg.mapType(t("long")))
+        assertEquals("smallint", pg.mapType(t("tinyint")))
+        assertEquals("double precision", pg.mapType(t("double")))
+        assertEquals("timestamp(3)", pg.mapType(t("datetime(3)")))
+        assertEquals("timestamp(6) with time zone", hsql.mapType(t("timestamptz(6)")))
     }
 
     @Test

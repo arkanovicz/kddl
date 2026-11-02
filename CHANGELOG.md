@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.33
+- **breaking change**: `SQLFormatter.castTypeName` removed (skorm no longer casts parameters)
+
 ## 0.32
 - **breaking change**: type aliases normalize to their SQL name (`int` → `integer`, `long` → `bigint`, `datetime` → `timestamp`, `clob` → `text`…), in the AST and in KDDL/PlantUML output
 - Fix: `datetime(3)` reached PostgreSQL unmapped
