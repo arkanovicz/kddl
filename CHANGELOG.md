@@ -1,14 +1,14 @@
 # Changelog
 
 ## 0.33
-- **breaking change**: `SQLFormatter.castTypeName` removed (skorm no longer casts parameters)
+- bugfixing types mapping
 
 ## 0.32
 - **breaking change**: type aliases normalize to their SQL name (`int` → `integer`, `long` → `bigint`, `datetime` → `timestamp`, `clob` → `text`…), in the AST and in KDDL/PlantUML output
 - Fix: `datetime(3)` reached PostgreSQL unmapped
 - Fix: HyperSQL `timestamptz` / `timetz`, rejected by HSQLDB and H2
 - Fix: PostgreSQL reverse engineering read `timestamptz` / `timetz` as zoneless, `jsonb` as `json`
-- `SQLFormatter.castTypeName`; `mapType` takes a `FieldType.Primitive`
+- `mapType` takes a `FieldType.Primitive`
 
 ## 0.31
 - Build: Gradle 9.4.1, Kotlin 2.3.21, antlr-kotlin 1.0.13, clikt 5.1.0, coroutines 1.11.0, postgresql 42.7.14, publishing through `com.vanniktech.maven.publish` and Dokka 2
