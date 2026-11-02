@@ -188,14 +188,12 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
         return ret.toString()
     }
 
-    private val typeMap = mapOf(
+    override val typeMap = mapOf(
         "tinyint" to "smallint", // no 1-byte integer in PostgreSQL
         "float" to "real",
         "double" to "double precision",
         "blob" to "bytea"
     )
-
-    override fun mapType(type: String) = typeMap[type]
 
     override fun setSchema(schema: String) = "SET search_path TO $schema,public$END"
 }

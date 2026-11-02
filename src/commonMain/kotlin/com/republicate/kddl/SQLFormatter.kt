@@ -20,7 +20,7 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
         is FieldType.InlineEnum ->
             if (supportsEnums) "enum_${transform(field.name).removeSurrounding(Q)}"
             else enumFallbackType(t.values)
-        is FieldType.Primitive -> mapType(t.name) ?: t.name
+        is FieldType.Primitive -> mapType(t)
     }
 
     // dialects without native enum support store an enum as a varchar wide enough for its longest label
@@ -33,12 +33,14 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
         if (uppercase) "${Q}${camelToSnake(str).uppercase()}$Q"
         else "${Q}${camelToSnake(str)}$Q"
 
-    private val typeMap = mapOf(
+    protected open val typeMap = mapOf(
         "float" to "real",
         "double" to "double precision"
     )
 
-    open fun mapType(type: String) = typeMap[type]
+    // the dialect's name for a type, precision kept
+    open fun mapType(type: FieldType.Primitive): String =
+        typeMap[type.base]?.let { it + type.suffix } ?: type.name
 
     // CB TODO - make it configurable
     private fun camelToSnake(camel : String) : String {

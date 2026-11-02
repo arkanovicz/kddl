@@ -148,6 +148,8 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation(libs.testcontainers.postgresql)
                 implementation(libs.testcontainers.mysql)
+                implementation(libs.h2)
+                implementation(libs.hsqldb)
             }
         }
     }

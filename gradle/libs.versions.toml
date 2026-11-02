@@ -15,6 +15,8 @@ postgres = "42.7.14"
 # Keyset.makeExtensionsImmutable). 8.4.0 is the last release on protobuf 3.x.
 mysql = "8.4.0"
 testcontainers = "2.0.5"
+h2 = "2.4.240"
+hsqldb = "2.7.4"
 
 [libraries]
 antlr-kotlin-runtime = { module = "com.strumenta:antlr-kotlin-runtime", version.ref = "antlrKotlin" }
@@ -25,6 +27,8 @@ mysql-connector = { module = "com.mysql:mysql-connector-j", version.ref = "mysql
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgres" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 testcontainers-mysql = { module = "org.testcontainers:testcontainers-mysql", version.ref = "testcontainers" }
+h2 = { module = "com.h2database:h2", version.ref = "h2" }
+hsqldb = { module = "org.hsqldb:hsqldb", version.ref = "hsqldb" }
 
 [plugins]
 multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
