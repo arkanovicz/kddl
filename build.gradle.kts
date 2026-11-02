@@ -26,7 +26,7 @@ val releasing = gradle.startParameter.taskNames.any { it.contains("MavenCentral"
 
 allprojects {
     group = "com.republicate.kddl"
-    version = "0.31"
+    version = "0.32"
 
     repositories {
         mavenCentral()
