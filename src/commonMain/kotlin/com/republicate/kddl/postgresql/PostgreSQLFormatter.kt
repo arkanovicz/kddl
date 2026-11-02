@@ -189,18 +189,10 @@ class PostgreSQLFormatter(quoted: Boolean, uppercase: Boolean, idempotent: Boole
     }
 
     private val typeMap = mapOf(
-        "int" to "integer",
-        "long" to "bigint",
-        "short" to "smallint",
         "tinyint" to "smallint", // no 1-byte integer in PostgreSQL
-        "byte" to "smallint",
         "float" to "real",
         "double" to "double precision",
-        "blob" to "bytea",
-        "datetime" to "timestamp",
-        "datetimetz" to "timestamptz",
-        "datetime_tz" to "timestamptz",
-        "timestamp_tz" to "timestamptz"
+        "blob" to "bytea"
     )
 
     override fun mapType(type: String) = typeMap[type]

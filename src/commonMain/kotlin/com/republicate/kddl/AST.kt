@@ -388,17 +388,34 @@ val keySuffix = "_id"
 val kindName = "kind"
 
 sealed class FieldType {
-    class Primitive(val name: String) : FieldType() {
+    class Primitive(name: String) : FieldType() {
+        // one spelling per type, whoever builds it, so consumers never list aliases
+        val name: String = name.substringBefore('(').let { base ->
+            aliases[base.lowercase()]?.let { it + name.substring(base.length) } ?: name
+        }
         val base: String get() = name.substringBefore('(')
+        // precision or width, parentheses included
+        val suffix: String get() = name.substring(base.length)
         // auto-incrementing integer pk types
         val isSerial: Boolean get() = name == "serial" || name == "bigserial"
         // plain integer type a foreign key uses to reference this serial pk (serial is int4, bigserial int8)
-        val fkType: String get() = if (name == "bigserial") "bigint" else "int"
+        val fkType: String get() = if (name == "bigserial") "bigint" else "integer"
         // type names an fk field may carry when referencing this serial pk
         val serialFkTypes: Set<String> get() = when (name) {
-            "serial" -> setOf("int", "integer", "long")
-            "bigserial" -> setOf("bigint", "long")
+            "serial" -> setOf("integer", "bigint")
+            "bigserial" -> setOf("bigint")
             else -> emptySet()
+        }
+        companion object {
+            private val aliases = mapOf(
+                "biginteger" to "bigint", "long" to "bigint",
+                "int" to "integer",
+                "smallinteger" to "smallint", "short" to "smallint",
+                "byte" to "tinyint",
+                "datetime" to "timestamp",
+                "datetimetz" to "timestamptz", "datetime_tz" to "timestamptz", "timestamp_tz" to "timestamptz",
+                "clob" to "text",
+            )
         }
         override fun toString() = name
         override fun equals(other: Any?) = other is Primitive && other.name == name
@@ -436,15 +453,15 @@ class ASTField(
     companion object {
         fun isTextType(type: FieldType): Boolean {
             if (type !is FieldType.Primitive) return false
-            return type.base.equals("varchar", true) || type.base == "char" || type.base == "text" || type.base == "clob"
+            return type.base.equals("varchar", true) || type.base == "char" || type.base == "text"
         }
-        private val temporalTypes = setOf("date", "time", "timetz", "timestamp", "datetime", "timestamptz", "datetimetz", "datetime_tz", "timestamp_tz", "interval")
+        private val temporalTypes = setOf("date", "time", "timetz", "timestamp", "timestamptz", "interval")
         fun isTemporalType(type: FieldType): Boolean =
             type is FieldType.Primitive && type.base.lowercase() in temporalTypes
         private val functionCall = Regex("""^\w+\s*\(.*\)$""")
         fun isFunctionCall(default: Any?) = default is String && functionCall.matches(default)
-        private val integerTypes = setOf("int", "integer", "bigint", "biginteger", "smallint", "smallinteger", "short", "tinyint", "byte", "long", "serial", "bigserial")
-        private val realTypes = setOf("float", "double", "real", "numeric", "decimal", "money")
+        private val integerTypes = setOf("integer", "bigint", "smallint", "tinyint", "serial", "bigserial")
+        private val realTypes = setOf("float", "double", "numeric", "money")
         private val numberLiteral = Regex("""^[-+]?\d+(\.\d+)?$""")
         /**
          * A numeric literal means what its field says: 0/1 on a boolean is a boolean, an integer keeps
@@ -476,7 +493,7 @@ class ASTField(
         if (type !is FieldType.Primitive) return false
         val pkType = pk.type
         if (pkType !is FieldType.Primitive) return false
-        if (type.name !in listOf("int", "integer", "long", "bigint", pkType.name)) return false
+        if (type.name !in listOf("integer", "bigint", pkType.name)) return false
         return true
     }
 

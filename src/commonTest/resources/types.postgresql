@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS timestamps (
   updated timestamp,
   expires timestamptz,
   scheduled timestamptz,
+  precise timestamp(3),
   PRIMARY KEY (id)
 );
 

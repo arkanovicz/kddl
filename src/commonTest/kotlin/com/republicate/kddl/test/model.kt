@@ -1490,12 +1490,11 @@ class SmallIntegerTypesTest {
     """.trimIndent()
 
     @Test
-    fun testAliasesKeepTheirSpelling() {
-        // like 'clob' for text, an alias survives into kddl output; the dialect resolves it
+    fun testAliasesAreNormalized() {
         val fields = parse(CharStreams.fromString(ddl)).schemas["s"]!!.tables["sizes"]!!.fields
         assertEquals("tinyint", (fields["flags"]!!.type as FieldType.Primitive).name)
-        assertEquals("byte", (fields["rank"]!!.type as FieldType.Primitive).name)
-        assertEquals("short", (fields["offset"]!!.type as FieldType.Primitive).name)
+        assertEquals("tinyint", (fields["rank"]!!.type as FieldType.Primitive).name)
+        assertEquals("smallint", (fields["offset"]!!.type as FieldType.Primitive).name)
         assertFalse(fields["offset"]!!.nonNull)
     }
 
@@ -1665,5 +1664,69 @@ class TraversalIntentTest {
         assertEquals(FieldType.Primitive("text"), db.schemas["s"]!!.tables["t"]!!.fields["body"]!!.type)
         val sql = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false).format(db)
         assertTrue(sql.contains("body text"), "Expected clob written as text, got:\n$sql")
+    }
+}
+
+class TypeNormalizationTest {
+
+    private val standard = mapOf(
+        "bigint" to "bigint", "biginteger" to "bigint", "long" to "bigint",
+        "int" to "integer", "integer" to "integer",
+        "smallint" to "smallint", "smallinteger" to "smallint", "short" to "smallint",
+        "tinyint" to "tinyint", "byte" to "tinyint",
+        "datetime" to "timestamp", "timestamp" to "timestamp",
+        "datetimetz" to "timestamptz", "datetime_tz" to "timestamptz",
+        "timestamptz" to "timestamptz", "timestamp_tz" to "timestamptz",
+        "text" to "text", "clob" to "text",
+        "json" to "json", "jsonb" to "jsonb",
+    )
+
+    private fun parsedType(type: String): String {
+        val ddl = "database d { schema s { table t { *t_id serial\n v $type } } }"
+        val field = parse(CharStreams.fromString(ddl)).schemas["s"]!!.tables["t"]!!.fields["v"]!!
+        return (field.type as FieldType.Primitive).name
+    }
+
+    @Test
+    fun testParserNormalizes() {
+        standard.forEach { (alias, name) -> assertEquals(name, parsedType(alias), alias) }
+    }
+
+    @Test
+    fun testConstructorNormalizes() {
+        standard.forEach { (alias, name) -> assertEquals(name, FieldType.Primitive(alias).name, alias) }
+    }
+
+    @Test
+    fun testPrecisionSurvives() {
+        assertEquals("timestamp(3)", parsedType("datetime(3)"))
+        assertEquals("timestamptz(6)", parsedType("timestamp_tz(6)"))
+        assertEquals("timestamp(3)", FieldType.Primitive("datetime(3)").name)
+        assertEquals("(3)", FieldType.Primitive("datetime(3)").suffix)
+    }
+
+    @Test
+    fun testAliasFkMatchesSerialPk() {
+        val ddl = """
+            database d {
+              schema s {
+                table a { *a_id bigserial }
+                table b { *b_id serial
+                  a_id long }
+                b *--> a
+              }
+            }
+        """.trimIndent()
+        val b = parse(CharStreams.fromString(ddl)).schemas["s"]!!.tables["b"]!!
+        assertEquals(FieldType.Primitive("bigint"), b.fields["a_id"]!!.type)
+        assertTrue(b.fields["a_id"]!!.isLinkField())
+    }
+
+    @Test
+    fun testKddlOutputPrintsStandardNames() {
+        val ddl = "database d { schema s { table t { *t_id serial\n v datetime\n w long } } }"
+        val output = parse(CharStreams.fromString(ddl)).display().toString()
+        assertTrue(output.contains("v timestamp"), output)
+        assertTrue(output.contains("w bigint"), output)
     }
 }

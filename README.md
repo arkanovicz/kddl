@@ -62,11 +62,12 @@ It is the model the test suite generates from, and this page quotes it verbatim 
 
 // Definition for database geo
 
-// Supported data types:
-//   boolean, tinyint (byte), smallint (short), integer, bigint, serial, bigserial, long,
+// Supported data types (aliases in parentheses):
+//   boolean, tinyint (byte), smallint (short), integer (int), bigint (long), serial, bigserial,
 //   float, double, numeric(*n*,*p*), money,
-//   time, timetz, date, timestamp, timestamptz, interval, char, char(*n*), varchar(*n*), text,
-//   enum(value1, value2, ...) or enum('value1', 'value2', ...), uuid, json, blob, clob, varbit
+//   time, timetz, date, timestamp (datetime), timestamptz (datetimetz), interval,
+//   char, char(*n*), varchar(*n*), text (clob),
+//   enum(value1, value2, ...) or enum('value1', 'value2', ...), uuid, json, jsonb, blob, varbit
 
 // a database contains options and schemas
 database geo {

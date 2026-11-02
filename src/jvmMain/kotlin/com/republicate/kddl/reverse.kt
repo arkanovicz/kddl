@@ -314,7 +314,7 @@ class ReverseEngineer(val url: String) {
         Types.TINYINT to "tinyint",
         Types.SMALLINT to "smallint",
         Types.INTEGER to "integer",
-        Types.BIGINT to "long",
+        Types.BIGINT to "bigint",
         Types.NUMERIC to "numeric",
         Types.DECIMAL to "numeric",
         Types.REAL to "float",

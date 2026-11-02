@@ -6,6 +6,7 @@ database types {
       updated timestamp?
       expires datetimetz?
       scheduled timestamp_tz?
+      precise datetime(3)?
     }
   }
 }

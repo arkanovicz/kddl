@@ -31,7 +31,7 @@ class PostgreSQLReverseFilter(val metadata: DatabaseMetaData): ReverseFilter {
         val default = column.default
         return when {
             default?.startsWith("nextval(") ?: false ->
-                column.copy(type = FieldType.Primitive(if (type.name == "long" || type.name == "bigint") "bigserial" else "serial"), default = null)
+                column.copy(type = FieldType.Primitive(if (type.name == "bigint") "bigserial" else "serial"), default = null)
             default?.contains("::") ?: false -> column.copy(default = default!!.substring(0, default.indexOf("::")))
             // an enum column comes as an unbounded varchar, named after its type; text comes the same way, unnamed
             // CB TODO - the convention that enum fields with the same name share the type enum_${name} is kept as a fallback
