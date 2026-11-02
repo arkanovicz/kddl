@@ -42,6 +42,10 @@ abstract class SQLFormatter(val quoted: Boolean, val uppercase: Boolean, val ide
     open fun mapType(type: FieldType.Primitive): String =
         typeMap[type.base]?.let { it + type.suffix } ?: type.name
 
+    // the type a value can be cast to (`?::type`): a serial is a column definition, not a type
+    fun castTypeName(type: FieldType.Primitive): String =
+        mapType(if (type.isSerial) FieldType.Primitive(type.fkType) else type)
+
     // CB TODO - make it configurable
     private fun camelToSnake(camel : String) : String {
         val ret = StringBuilder()

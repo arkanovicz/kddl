@@ -1723,6 +1723,21 @@ class TypeNormalizationTest {
     }
 
     @Test
+    fun testCastTypeName() {
+        val pg = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, false)
+        val hsql = com.republicate.kddl.hypersql.HyperSQLFormatter(false, false, false)
+        fun t(name: String) = FieldType.Primitive(name)
+        assertEquals("integer", pg.castTypeName(t("serial")))
+        assertEquals("bigint", pg.castTypeName(t("bigserial")))
+        assertEquals("bigint", pg.castTypeName(t("long")))
+        assertEquals("smallint", pg.castTypeName(t("tinyint")))
+        assertEquals("double precision", pg.castTypeName(t("double")))
+        assertEquals("timestamp(3)", pg.castTypeName(t("datetime(3)")))
+        assertEquals("integer", hsql.castTypeName(t("serial")))
+        assertEquals("timestamp(6) with time zone", hsql.castTypeName(t("timestamptz(6)")))
+    }
+
+    @Test
     fun testKddlOutputPrintsStandardNames() {
         val ddl = "database d { schema s { table t { *t_id serial\n v datetime\n w long } } }"
         val output = parse(CharStreams.fromString(ddl)).display().toString()
