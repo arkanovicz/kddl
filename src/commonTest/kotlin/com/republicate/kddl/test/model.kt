@@ -473,6 +473,25 @@ class FieldModifiersTest {
     }
 
     @Test
+    fun testIndexedLinkField() {
+        val ddl = """
+            database test {
+              schema s {
+                table message {
+                  *id serial
+                  +reply_to -> message?
+                }
+              }
+            }
+        """.trimIndent()
+        val db = parse(CharStreams.fromString(ddl))
+        val table = db.schemas["s"]!!.tables["message"]!!
+        assertTrue(table.fields["reply_to"]!!.indexed)
+        val sql = com.republicate.kddl.postgresql.PostgreSQLFormatter(false, false, true).format(db)
+        assertTrue(sql.contains("CREATE INDEX IF NOT EXISTS message_reply_to_idx"), "Expected an index on the link field in:\n$sql")
+    }
+
+    @Test
     fun testNullableField() {
         val ddl = """
             database test {

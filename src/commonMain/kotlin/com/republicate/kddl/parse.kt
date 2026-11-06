@@ -176,7 +176,7 @@ fun buildAst(
                     val fieldType: FieldType = refPk.first().type.let {
                         if (it is FieldType.Primitive && it.isSerial) FieldType.Primitive(it.fkType) else it
                     }
-                    ASTField(table, fieldName, fieldType, pk, nonNull, unique)
+                    ASTField(table, fieldName, fieldType, pk, nonNull, unique, indexed)
                         .also {
                             val fk = ASTForeignKey(table, setOf(it), reference, nonNull, unique, cascade, direction, conn.bidirectional)
                             table.foreignKeys.add(fk)

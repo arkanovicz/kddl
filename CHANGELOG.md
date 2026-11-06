@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.34
+- Fix: `+` on a link field (`+reply_to -> message?`) was dropped, no index was created
+
 ## 0.33
 - bugfixing types mapping
 
